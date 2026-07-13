@@ -1,0 +1,60 @@
+name: Release
+
+# Conventional-Commits-driven release: version bump + changelog + GitHub Release + tag,
+# then publish to PyPI via OIDC Trusted Publishing (no long-lived tokens).
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci-gate:
+    # Release only proceeds if the full gated CI (test + dry + docs) is green.
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: ci-gate
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write # push version bump, tag, create GitHub Release
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute release (python-semantic-release)
+        id: release
+        uses: python-semantic-release/python-semantic-release@v9
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # OIDC for PyPI Trusted Publishing — no password/token stored
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: v${{ needs.release.outputs.version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build distribution
+        run: uv build
+
+      - name: Publish to PyPI (OIDC Trusted Publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # No `password:` — relies purely on OIDC. Register the Trusted Publisher on PyPI first:
+        # org=<github-org>, repo=<repo-slug>, workflow=release.yml, environment=pypi.

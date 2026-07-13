@@ -1,0 +1,52 @@
+name: 🐞 Bug report
+description: Report something that isn't working as expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! For **security vulnerabilities**, do not use
+        this form — follow our [Security Policy](https://github.com/mailkube/mailkube/security/policy).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, including what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps (and the code you ran) to reproduce the behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output / logs
+      description: Paste relevant output. This is automatically formatted as code.
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: "mailkube version"
+      placeholder: "1.2.3 (or git commit)"
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime version & OS
+      placeholder: "e.g. Python 3.12 on macOS 14"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: This is not a security vulnerability (those go through the Security Policy).
+          required: true
