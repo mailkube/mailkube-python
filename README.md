@@ -18,24 +18,43 @@ pip install mailkube
 uv add mailkube
 ```
 
+## Configuration
+
+```python
+from mailkube import Mailkube
+
+client = Mailkube(
+    api_key="mk_...",                    # or set MAILKUBE_API_KEY
+    base_url="https://api.mailkube.com/mta/v1/",  # or set MAILKUBE_BASE_URL; this is the default
+    timeout=30.0,                        # per-request timeout in seconds
+)
+```
+
+`AsyncMailkube` takes the same arguments. Both also accept `http_client=` — your own
+`httpx.Client` / `httpx.AsyncClient` — if you need custom transport, proxies, or mTLS; the SDK
+will not close a client you pass in.
+
 ## Send an email
 
 ```python
 from mailkube import Mailkube
 
-client = Mailkube(api_key="mk_...")  # or set MAILKUBE_API_KEY
-
-email = client.emails.send(
-    from_="Acme <hello@yourdomain.com>",
-    to="customer@example.com",
-    subject="Hello world",
-    html="<p>It works!</p>",
-)
-print(email.id, email.message_id)
+with Mailkube() as client:
+    email = client.emails.send(
+        from_="Acme <hello@yourdomain.com>",
+        to="customer@example.com",
+        cc="manager@example.com",
+        reply_to="support@yourdomain.com",
+        subject="Hello world",
+        html="<p>It works!</p>",
+    )
+    print(email.id, email.message_id)
 ```
 
 `from_` maps to the wire `from` field (`from` is a reserved keyword). Supply `html` and/or `text`, or
-a `template_id`. Attachments accept raw `bytes` or a base64 string.
+a `template_id` with `template_version` and `variables`. Attachments accept raw `bytes` or a base64
+string. See [`SendEmailParams`](src/mailkube/types/params.py) for the full field list (`cc`, `bcc`,
+`reply_to`, `headers`, `attachments`, `template_id`, `topic`, `idempotency_key`, …).
 
 ### Async
 
@@ -55,6 +74,25 @@ async def main():
 
 asyncio.run(main())
 ```
+
+### Idempotency
+
+Pass `idempotency_key` to safely retry a send without risking a duplicate — sent as the
+`Idempotency-Key` header, not in the body:
+
+```python
+email = client.emails.send(
+    from_="Acme <hello@yourdomain.com>",
+    to="customer@example.com",
+    subject="Your receipt",
+    html="<p>Thanks for your order.</p>",
+    idempotency_key="order-4821-receipt",
+)
+print(email.idempotent_replayed)  # True if this key was already used
+```
+
+Reusing a key with a different payload raises `ConflictError` instead of silently sending the new
+content.
 
 ### Errors
 
@@ -97,12 +135,34 @@ else:
 An unrecognized event `type` is returned as `UnknownEvent` instead of raising, so a new server event
 type never forces an SDK upgrade on receivers.
 
+## Logging
+
+Silent by default. Turn on request/response logging with:
+
+```python
+import mailkube
+
+mailkube.enable_logging(level="DEBUG")
+```
+
+or set the `MAILKUBE_LOG` environment variable. `Authorization` and `Idempotency-Key` headers are
+redacted from log output.
+
 ## Client lifecycle
 
 Create one client and reuse it. `Mailkube` is thread-safe; `AsyncMailkube` is bound to its event
-loop. Use the client as a (async) context manager, or call `.close()` / `.aclose()`. You may inject
-your own `httpx.Client` / `httpx.AsyncClient` via `http_client=...` — the SDK will not close a client
-you pass in.
+loop. Use the client as a (async) context manager, or call `.close()` / `.aclose()`.
+
+## More examples
+
+Runnable scripts in [`examples/`](examples):
+
+- [`simple_send.py`](examples/simple_send.py) — basic sync send
+- [`async_send.py`](examples/async_send.py) — async send, then thread a reply onto it
+- [`send_with_attachments.py`](examples/send_with_attachments.py) — attach a file from raw bytes
+- [`send_with_template.py`](examples/send_with_template.py) — send from a saved template
+- [`webhook_receiver_flask.py`](examples/webhook_receiver_flask.py) — verify and dispatch webhooks
+  in a Flask app
 
 ## Contributing
 
@@ -111,4 +171,4 @@ must pass. Security issues: see [SECURITY.md](SECURITY.md).
 
 ## License
 
-[Apache-2.0](LICENSE) © 2026 Mailtactic, Corp..
+[Apache-2.0](LICENSE) © 2026 Mailtactic, Corp.
