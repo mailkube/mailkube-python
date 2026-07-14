@@ -32,7 +32,7 @@ jobs:
 
       - name: Compute release (python-semantic-release)
         id: release
-        uses: python-semantic-release/python-semantic-release@v9
+        uses: python-semantic-release/python-semantic-release@v10
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
