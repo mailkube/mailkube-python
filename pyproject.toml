@@ -85,7 +85,7 @@ fail_under = 90
 # ── Release automation (Conventional Commits → SemVer → PyPI via OIDC) ─────────
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
-build_command = "uv build"
+build_command = "pip install uv && uv build"
 commit_parser = "conventional"
 major_on_zero = false
 tag_format = "v{version}"
