@@ -13,6 +13,21 @@ app = Flask(__name__)
 SECRET = os.environ["MAILKUBE_WEBHOOK_SECRET"]
 
 
+@app.get("/webhooks/mailkube")
+def register():
+    """Answer Mailkube's one-time endpoint-registration challenge.
+
+    When you create (or re-point the URL of) a webhook endpoint, Mailkube probes it
+    with ``GET ...?hub.mode=subscribe&hub.challenge=<token>`` and only persists the
+    endpoint if the response body echoes that token verbatim. Skip this and
+    registration is rejected, so no events are ever delivered — signature
+    verification below is necessary but not sufficient on its own.
+    """
+    if request.args.get("hub.mode") == "subscribe":
+        return request.args.get("hub.challenge", ""), 200
+    return {"error": "unexpected GET"}, 400
+
+
 @app.post("/webhooks/mailkube")
 def receive():
     """Verify the signature over the raw body, then dispatch on the event type."""
