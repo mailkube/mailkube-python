@@ -53,3 +53,9 @@ def test_str_attachment_passthrough():
 def test_recipient_list_passthrough():
     spec = _build(from_="a@x.com", to=["b@y.com", "c@z.com"], subject="Hi", html="x")
     assert spec.json["to"] == ["b@y.com", "c@z.com"]
+
+
+def test_tags_passthrough():
+    tags = [{"name": "campaign", "value": "spring24"}, {"name": "plan", "value": "pro"}]
+    spec = _build(from_="a@x.com", to="b@y.com", subject="Hi", html="x", tags=tags)
+    assert spec.json["tags"] == tags

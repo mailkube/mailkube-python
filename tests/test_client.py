@@ -33,7 +33,14 @@ def test_send_success_shapes_request_and_response():
         return ok_handler(request)
 
     client = make_client(handler)
-    email = client.emails.send(from_="a@x.com", to="b@y.com", subject="Hi", html="<p>Hi</p>", idempotency_key="k1")
+    email = client.emails.send(
+        from_="a@x.com",
+        to="b@y.com",
+        subject="Hi",
+        html="<p>Hi</p>",
+        tags=[{"name": "campaign", "value": "spring24"}],
+        idempotency_key="k1",
+    )
 
     assert email.id == "abc123"
     assert email.message_id == "<abc123@msg.mailkube.com>"
@@ -49,6 +56,7 @@ def test_send_success_shapes_request_and_response():
     assert "from_" not in captured["body"]
     assert "idempotency_key" not in captured["body"]
     assert captured["body"]["to"] == "b@y.com"
+    assert captured["body"]["tags"] == [{"name": "campaign", "value": "spring24"}]
 
 
 def test_idempotent_replayed_true():

@@ -30,14 +30,18 @@ class Attachment(TypedDict):
 
 
 class Tag(TypedDict):
-    """A name/value tag.
+    """A free-form name/value tag attached to an outgoing email.
 
-    Accepted for Resend payload parity; Mailkube currently ignores tags (they are
-    validated for shape then dropped, never forwarded).
+    Tags are forwarded to the server, which denormalizes them onto the sending-log so
+    you can filter, export, and dashboard sends by tag, and so they ride along on
+    delivery webhooks. Validation is server-side (the authoritative gate): names and
+    values are limited to the ``[A-Za-z0-9_-]`` charset and 256 characters each, values
+    may be blank, at most 20 tags per send, and names must be unique. Tag values are not
+    encrypted, so do not put personal data in them.
 
     Attributes:
         name: Tag name.
-        value: Tag value.
+        value: Tag value (may be blank, ``''``).
     """
 
     name: str
@@ -63,7 +67,8 @@ class SendEmailParams(TypedDict):
         reply_to: Reply-To address(es).
         headers: Custom message headers (e.g. ``In-Reply-To`` for threading).
         attachments: File attachments.
-        tags: Name/value tags (accepted for parity; currently a no-op server-side).
+        tags: Free-form name/value tags forwarded to the server and denormalized onto
+            the sending-log for filtering, export, dashboards, and delivery webhooks.
         template_id: UUID of a saved template to render instead of raw content.
         template_version: Template version number or ``"latest"``.
         variables: Values for the template's ``{{variable}}`` placeholders.
