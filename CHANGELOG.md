@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.2.0 (2026-08-03)
+
+### Documentation
+
+- Document the message-tags send parameter
+  ([`4805922`](https://github.com/mailkube/mailkube-python/commit/48059221909094b6217206a6674ef2f64e036efe))
+
+### Features
+
+- **client**: Support message tags on send
+  ([`e82abc5`](https://github.com/mailkube/mailkube-python/commit/e82abc5aafdfe305ebd82b4b26e87dd13b925470))
+
+
 ## v1.1.1 (2026-07-26)
 
 ### Bug Fixes
