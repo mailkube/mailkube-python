@@ -56,7 +56,7 @@ with Mailkube() as client:
 `from_` maps to the wire `from` field (`from` is a reserved keyword). Supply `html` and/or `text`, or
 a `template_id` with `template_version` and `variables`. Attachments accept raw `bytes` or a base64
 string. See [`SendEmailParams`](src/mailkube/types/params.py) for the full field list (`cc`, `bcc`,
-`reply_to`, `headers`, `attachments`, `template_id`, `topic`, `idempotency_key`, …).
+`reply_to`, `headers`, `attachments`, `tags`, `template_id`, `topic`, `idempotency_key`, …).
 
 ### Async
 
@@ -116,6 +116,26 @@ reply = client.emails.send(
 )
 ```
 
+### Tags
+
+Attach free-form `{"name": ..., "value": ...}` pairs to a send. The server denormalizes them
+onto the sending-log, so you can filter, export, and dashboard by tag, and they ride along on
+delivery webhooks:
+
+```python
+email = client.emails.send(
+    from_="Acme <hello@yourdomain.com>",
+    to="customer@example.com",
+    subject="Welcome aboard",
+    html="<p>Glad you're here.</p>",
+    tags=[{"name": "campaign", "value": "spring24"}, {"name": "plan", "value": "pro"}],
+)
+```
+
+Validation is server-side: names and values allow the `[A-Za-z0-9_-]` charset and up to 256
+characters each, values may be blank, at most 20 tags per send, and names must be unique. Tag
+values are not encrypted, so keep personal data out of them.
+
 ## Verify webhooks
 
 `webhooks.verify` is a pure, stdlib-only helper — call it in your request handler with the raw body:
@@ -162,6 +182,7 @@ Runnable scripts in [`examples/`](examples):
 - [`simple_send.py`](examples/simple_send.py) — basic sync send
 - [`async_send.py`](examples/async_send.py) — async send, then thread a reply onto it
 - [`send_with_attachments.py`](examples/send_with_attachments.py) — attach a file from raw bytes
+- [`send_with_tags.py`](examples/send_with_tags.py) — tag a send for filtering and reporting
 - [`send_with_template.py`](examples/send_with_template.py) — send from a saved template
 - [`webhook_receiver_flask.py`](examples/webhook_receiver_flask.py) — verify and dispatch webhooks
   in a Flask app
