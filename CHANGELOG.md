@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.3.1 (2026-08-10)
+
+### Bug Fixes
+
+- Ci badge link fixed
+  ([`b471626`](https://github.com/mailkube/mailkube-python/commit/b471626f27b823d3c84fe7530e009f99b3d250ec))
+
+### Chores
+
+- **deps**: Bump ruff to 0.16.2 and format markdown code blocks
+  ([`8558e05`](https://github.com/mailkube/mailkube-python/commit/8558e0554252d842d3cbaebf761ab328ce0bd916))
+
+
 ## v1.3.0 (2026-08-10)
 
 ### Bug Fixes
