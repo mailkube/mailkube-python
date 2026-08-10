@@ -26,9 +26,9 @@ uv add mailkube
 from mailkube import Mailkube
 
 client = Mailkube(
-    api_key="mk_...",                    # or set MAILKUBE_API_KEY
+    api_key="mk_...",  # or set MAILKUBE_API_KEY
     base_url="https://api.mailkube.com/mta/v1/",  # or set MAILKUBE_BASE_URL; this is the default
-    timeout=30.0,                        # per-request timeout in seconds
+    timeout=30.0,  # per-request timeout in seconds
 )
 ```
 
@@ -64,6 +64,7 @@ string. See [`SendEmailParams`](src/mailkube/types/params.py) for the full field
 import asyncio
 from mailkube import AsyncMailkube
 
+
 async def main():
     async with AsyncMailkube() as client:
         email = await client.emails.send(
@@ -73,6 +74,7 @@ async def main():
             html="<p>It works!</p>",
         )
         print(email.id)
+
 
 asyncio.run(main())
 ```
@@ -166,13 +168,13 @@ email = client.emails.send(
     subject="Your weekly digest",
     html="<p>Here's what happened.</p>",
     scheduled_at=datetime.now(UTC) + timedelta(hours=2),
-    batch_id="digest-2026-08",       # optional: group sends so you can move or cancel them together
+    batch_id="digest-2026-08",  # optional: group sends so you can move or cancel them together
 )
 
-email.is_scheduled     # True
-email.status           # "scheduled"
-email.scheduled_at     # "2026-08-20T07:00:00Z"
-email.id               # use this to retrieve, reschedule, or cancel it
+email.is_scheduled  # True
+email.status  # "scheduled"
+email.scheduled_at  # "2026-08-20T07:00:00Z"
+email.id  # use this to retrieve, reschedule, or cancel it
 ```
 
 An immediate send is unaffected: `is_scheduled` is `False` and `status` / `scheduled_at` /
@@ -195,7 +197,7 @@ returns:
 
 ```python
 page = client.scheduled_emails.list(status="scheduled", batch_id="digest-2026-08")
-page.data                       # list[ScheduledEmail]
+page.data  # list[ScheduledEmail]
 page.pagination.total_count
 page.has_more
 
@@ -219,10 +221,10 @@ Everything sent under one `batch_id` moves or cancels together:
 
 ```python
 result = client.scheduled_emails.batches.update("digest-2026-08", scheduled_at="2026-08-21T07:00:00Z")
-result.rescheduled_count        # 2
+result.rescheduled_count  # 2
 
 result = client.scheduled_emails.batches.cancel("digest-2026-08")
-result.canceled_count           # 2
+result.canceled_count  # 2
 ```
 
 An unknown batch is a no-op reporting `0`, not an error.
@@ -240,10 +242,10 @@ from mailkube import ErrorName, InvalidRequestError, NotFoundError
 try:
     client.scheduled_emails.cancel(email_id)
 except NotFoundError:
-    ...                                              # scheduled_email_not_found
+    ...  # scheduled_email_not_found
 except InvalidRequestError as exc:
     if exc.error_name == ErrorName.SCHEDULED_EMAIL_NOT_PENDING:
-        ...                                          # already sent or canceled
+        ...  # already sent or canceled
 ```
 
 Every API error also carries `.request_id` — quote it when contacting support.
