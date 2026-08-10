@@ -271,6 +271,28 @@ else:
 An unrecognized event `type` is returned as `UnknownEvent` instead of raising, so a new server event
 type never forces an SDK upgrade on receivers.
 
+### Event types
+
+This version parses the following into typed models. Anything else arrives as `UnknownEvent`.
+
+| `type` | Model | `data` carries |
+| --- | --- | --- |
+| `email.sent` | `EmailSentEvent` | `sent` — accepted and spooled for transmission |
+| `email.delivered` | `EmailDeliveredEvent` | `delivery` — accepted by the receiving server |
+| `email.bounced` | `EmailBouncedEvent` | `bounce` — permanent failure, with code and reason |
+| `email.delivery_delayed` | `EmailDeliveryDelayedEvent` | `delay` — transient failure, may still succeed |
+| `email.scheduled` | `EmailScheduledEvent` | `scheduled` — accepted for later transmission |
+| `email.failed` | `EmailFailedEvent` | `failed` — dropped at dispatch time, never transmitted |
+| `email.suppressed` | `EmailSuppressedEvent` | `suppression` — recipients dropped before sending |
+| `email.opened` | `EmailOpenedEvent` | `open` — tracking pixel loaded |
+| `email.clicked` | `EmailClickedEvent` | `click` — tracked link followed |
+| `domain.status` | `DomainStatusEvent` | a sending domain's status or onboarding transition |
+| `webhook.status` | `WebhookStatusEvent` | a webhook endpoint's status transition |
+
+Every `email.*` event shares a message-context block (`email_id`, `created_at`, `from`, `to`,
+`subject`, `domain`, `tags`). `tags` echoes the tags attached at send time and is `[]` when there
+were none. The four transaction-derived fields (`from`, `to`, `subject`, `domain`) can be `null`.
+
 ## Logging
 
 Silent by default. Turn on request/response logging with:

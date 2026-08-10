@@ -108,6 +108,41 @@ reproduce. The duplication gate (`jscpd`, > 1% fails) exists to keep it true.
 - A transport failure with no HTTP response is a `MailkubeConnectionError`; a 2xx body that is
   not the expected shape is a `MailkubeError`. Neither is an `APIError`.
 
+## Webhook events
+
+The inbound event models in `types/events.py` mirror the server's event catalogue. They follow
+the response-model rules above with two deliberate inversions, both in service of never
+raising on a payload a released client has not seen:
+
+- **`extra="allow"`, not `extra="ignore"`** — a receiver logging or forwarding the event keeps
+  fields this version predates. Nested `TypedDict`s (`Tag`) inherit this from the parent model.
+- **`UnknownEvent` is a union arm, not an error.** `_event_discriminator` maps any `type`
+  outside `_KNOWN_TAGS` to it, so a server-side event addition degrades to untyped access
+  instead of breaking `parse_event`.
+
+**`WebhookEvent` is the catalogue.** `_KNOWN_TAGS` is derived from its arms by `_union_tags()`,
+so the set and the union cannot disagree. Do not reintroduce a hand-maintained list: a tag
+missing from it routes a wired-up event to `UnknownEvent` with no test failure.
+
+Server-controlled strings (`reason`, `status`, `disabled_reason`) stay `str`. A `Literal` or
+enum turns a new server-side value into a parse error on an already-released client.
+
+### Checklist for a new webhook event
+
+1. A context block in `types/events.py` for the nested object — **only if no existing one fits**.
+   `email.sent` reuses `DeliveryContext` because the server reuses the same serializer.
+2. A `*Data` class subclassing `MessageContext` (for `email.*`) or `_Model`, plus the envelope
+   class declaring `type: Literal[...]` and `data`.
+3. One union arm on `WebhookEvent`, before the `UnknownEvent` arm. That is the whole
+   registration — nothing else to keep in sync.
+4. Exports in `types/__init__.py` (models and contexts) and the package root (envelope only),
+   `__all__` sorted.
+5. A `PAYLOADS` entry in `tests/test_webhooks.py` (the parametrized parse test and the
+   `set(PAYLOADS) == _KNOWN_TAGS` guard pick it up), the expected tag added to
+   `test_catalogue_matches_the_union`, and a field-level assertion per nested block.
+6. A row in the README event-types table.
+7. Run every gate in `.rules/SOLID_DRY_KISS.md` locally before pushing.
+
 ## Checklist for a new verb
 
 1. Params `TypedDict` in `types/params.py`, response model(s) in `types/responses.py`.

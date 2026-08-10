@@ -18,13 +18,16 @@ from mailkube import (
     EmailBouncedEvent,
     EmailClickedEvent,
     EmailDeliveredEvent,
+    EmailFailedEvent,
+    EmailScheduledEvent,
+    EmailSentEvent,
     SignatureVerificationError,
     UnknownEvent,
     parse_event,
     verify,
     verify_signature,
 )
-from mailkube.types.events import _event_discriminator
+from mailkube.types.events import _KNOWN_TAGS, _event_discriminator
 
 SECRET = "s" * 64
 WEBHOOK_ID = "d1"
@@ -49,6 +52,7 @@ def _msg_ctx() -> dict[str, object]:
         "subject": "Hi",
         "to": ["b@y.com"],
         "from": "a@x.com",
+        "tags": [{"name": "campaign", "value": "welcome"}],
     }
 
 
@@ -128,7 +132,10 @@ _FAILURE = {"recipient": "b@y.com", "timestamp": "t", "code": 550, "reason": "bl
 _OPEN = {"ipAddress": "1.2.3.4", "userAgent": "UA", "timestamp": "t"}
 
 PAYLOADS = {
+    "email.sent": {**_msg_ctx(), "sent": _DELIVERY},
     "email.delivered": {**_msg_ctx(), "delivery": _DELIVERY},
+    "email.scheduled": {**_msg_ctx(), "scheduled": {"scheduled_at": "t", "batch_id": "b1"}},
+    "email.failed": {**_msg_ctx(), "failed": {"reason": "mta_unreachable", "timestamp": "t"}},
     "email.bounced": {**_msg_ctx(), "bounce": _FAILURE},
     "email.delivery_delayed": {**_msg_ctx(), "delay": _FAILURE},
     "email.suppressed": {**_msg_ctx(), "suppression": {"recipients": ["b@y.com"], "timestamp": "t"}},
@@ -157,6 +164,29 @@ def test_parse_each_known_event(event_type):
     assert not isinstance(event, UnknownEvent)
 
 
+def test_catalogue_matches_the_union():
+    # Pins the tags derived from WebhookEvent. A dropped or misspelled union arm degrades that
+    # event to UnknownEvent at runtime, which nothing else here would notice.
+    expected = {
+        "email.sent",
+        "email.delivered",
+        "email.scheduled",
+        "email.failed",
+        "email.bounced",
+        "email.delivery_delayed",
+        "email.suppressed",
+        "email.opened",
+        "email.clicked",
+        "domain.status",
+        "webhook.status",
+    }
+    assert expected == _KNOWN_TAGS
+
+
+def test_every_known_event_has_a_parse_payload():
+    assert set(PAYLOADS) == _KNOWN_TAGS
+
+
 def test_parse_delivered_fields():
     event = parse_event(_event("email.delivered", PAYLOADS["email.delivered"]))
     assert isinstance(event, EmailDeliveredEvent)
@@ -169,6 +199,76 @@ def test_parse_bounced_failure_fields():
     assert isinstance(event, EmailBouncedEvent)
     assert event.data.bounce.code == 550
     assert event.data.bounce.reason == "blocked"
+
+
+def test_parse_sent_reuses_the_delivery_block():
+    event = parse_event(_event("email.sent", PAYLOADS["email.sent"]))
+    assert isinstance(event, EmailSentEvent)
+    assert event.data.sent.recipient == "b@y.com"
+    assert event.data.sent.timestamp == "t"
+
+
+def test_parse_scheduled_fields():
+    event = parse_event(_event("email.scheduled", PAYLOADS["email.scheduled"]))
+    assert isinstance(event, EmailScheduledEvent)
+    assert event.data.scheduled.scheduled_at == "t"
+    assert event.data.scheduled.batch_id == "b1"
+
+
+def test_parse_scheduled_null_batch_id():
+    payload = {**_msg_ctx(), "scheduled": {"scheduled_at": "t", "batch_id": None}}
+    event = parse_event(_event("email.scheduled", payload))
+    assert isinstance(event, EmailScheduledEvent)
+    assert event.data.scheduled.batch_id is None
+
+
+def test_parse_failed_fields():
+    event = parse_event(_event("email.failed", PAYLOADS["email.failed"]))
+    assert isinstance(event, EmailFailedEvent)
+    assert event.data.failed.reason == "mta_unreachable"
+    assert event.data.failed.timestamp == "t"
+
+
+def test_parse_failed_accepts_an_unpublished_reason():
+    payload = {**_msg_ctx(), "failed": {"reason": "some_future_reason", "timestamp": "t"}}
+    event = parse_event(_event("email.failed", payload))
+    assert isinstance(event, EmailFailedEvent)
+    assert event.data.failed.reason == "some_future_reason"
+
+
+def test_parse_message_tags():
+    event = parse_event(_event("email.delivered", PAYLOADS["email.delivered"]))
+    assert event.data.tags == [{"name": "campaign", "value": "welcome"}]
+
+
+def test_tags_default_to_empty_when_absent():
+    payload = {k: v for k, v in PAYLOADS["email.delivered"].items() if k != "tags"}
+    event = parse_event(_event("email.delivered", payload))
+    assert event.data.tags == []
+
+
+def test_unknown_key_inside_a_tag_is_kept():
+    # Tag is a TypedDict, which pydantic would normally prune; it inherits the parent model's
+    # extra="allow". Locking that here because the leniency policy depends on it.
+    payload = {**_msg_ctx(), "tags": [{"name": "c", "value": "w", "future": "kept"}], "delivery": _DELIVERY}
+    event = parse_event(_event("email.delivered", payload))
+    assert event.data.tags == [{"name": "c", "value": "w", "future": "kept"}]
+    assert event.model_dump(by_alias=True)["data"]["tags"][0]["future"] == "kept"
+
+
+def test_null_message_context_fields_parse():
+    # The server resolves these through the sending transaction, which a per-recipient event
+    # can briefly outlive; all four then arrive as null.
+    payload = {
+        **PAYLOADS["email.delivered"],
+        "domain": None,
+        "subject": None,
+        "to": None,
+        "from": None,
+    }
+    event = parse_event(_event("email.delivered", payload))
+    assert isinstance(event, EmailDeliveredEvent)
+    assert (event.data.domain, event.data.subject, event.data.to, event.data.from_) == (None, None, None, None)
 
 
 def test_parse_clicked_camelcase_aliases():
