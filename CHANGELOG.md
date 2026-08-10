@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.4.0 (2026-08-10)
+
+### Bug Fixes
+
+- **events**: Allow null domain, subject, to and from on message context
+  ([`156f802`](https://github.com/mailkube/mailkube-python/commit/156f802c438bc13d768ed7502fe00b55bce05df9))
+
+### Features
+
+- **events**: Model email.sent, email.scheduled and email.failed with message tags
+  ([`156f802`](https://github.com/mailkube/mailkube-python/commit/156f802c438bc13d768ed7502fe00b55bce05df9))
+
+
 ## v1.3.1 (2026-08-10)
 
 ### Bug Fixes
