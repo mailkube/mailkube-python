@@ -13,6 +13,7 @@ Load the relevant rule file from `.rules/` based on the task.
 | Rule File | Load When |
 |---|---|
 | `.rules/SOLID_DRY_KISS.md` | Writing or changing any code — the enforced engineering standards (SOLID, DRY, KISS, coverage, docs) and how to run each gate locally. |
+| `.rules/SDK_DESIGN.md` | Adding a resource, verb, response model, or paginated listing — the layering, sync/async parity rule, resource + verb naming, response-model conventions, pagination contract, and error model that every mailkube SDK mirrors. |
 | `.rules/RELEASE.md` | Touching `release.yml`, `[tool.semantic_release]`, versioning, or the PyPI OIDC publish flow. |
 
 ## Key Conventions (always apply)

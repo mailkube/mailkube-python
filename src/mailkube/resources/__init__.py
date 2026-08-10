@@ -3,5 +3,18 @@
 from __future__ import annotations
 
 from .emails import AsyncEmailsResource, EmailsResource
+from .scheduled_emails import (
+    AsyncScheduledEmailBatchesResource,
+    AsyncScheduledEmailsResource,
+    ScheduledEmailBatchesResource,
+    ScheduledEmailsResource,
+)
 
-__all__ = ["AsyncEmailsResource", "EmailsResource"]
+__all__ = [
+    "AsyncEmailsResource",
+    "AsyncScheduledEmailBatchesResource",
+    "AsyncScheduledEmailsResource",
+    "EmailsResource",
+    "ScheduledEmailBatchesResource",
+    "ScheduledEmailsResource",
+]

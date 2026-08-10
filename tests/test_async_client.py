@@ -73,3 +73,20 @@ def test_async_injected_client_not_closed():
         return http.is_closed
 
     assert asyncio.run(run()) is False
+
+
+def test_async_scheduled_send_ack_exposes_the_schedule_fields():
+    payload = {"id": "abc123", "status": "scheduled", "scheduled_at": "2026-08-20T07:00:00Z"}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(202, json=payload)
+
+    async def run():
+        async with make_async_client(handler) as client:
+            return await client.emails.send(
+                from_="a@x.com", to="b@y.com", subject="Hi", html="x", scheduled_at="2026-08-20T07:00:00Z"
+            )
+
+    email = asyncio.run(run())
+    assert email.is_scheduled is True
+    assert email.scheduled_at == "2026-08-20T07:00:00Z"

@@ -172,3 +172,40 @@ def test_missing_api_key_errors(monkeypatch):
     monkeypatch.delenv("MAILKUBE_API_KEY", raising=False)
     with pytest.raises(MailkubeError):
         Mailkube()
+
+
+def test_scheduled_send_ack_exposes_the_schedule_fields():
+    payload = {
+        "id": "abc123",
+        "message_id": "<abc123@msg.mailkube.com>",
+        "object": "scheduled_email",
+        "status": "scheduled",
+        "scheduled_at": "2026-08-20T07:00:00Z",
+        "batch_id": "campaign-x",
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(202, json=payload)
+
+    email = make_client(handler).emails.send(
+        from_="a@x.com", to="b@y.com", subject="Hi", html="x", scheduled_at="2026-08-20T07:00:00Z"
+    )
+
+    assert email.is_scheduled is True
+    assert email.status == "scheduled"
+    assert email.scheduled_at == "2026-08-20T07:00:00Z"
+    assert email.batch_id == "campaign-x"
+
+
+def test_immediate_send_leaves_the_schedule_fields_unset():
+    email = make_client(ok_handler).emails.send(from_="a@x.com", to="b@y.com", subject="Hi", html="x")
+
+    assert email.is_scheduled is False
+    assert (email.status, email.scheduled_at, email.batch_id) == (None, None, None)
+
+
+def test_an_absolute_url_off_the_configured_origin_is_refused():
+    client = make_client(ok_handler)
+
+    with pytest.raises(MailkubeError, match="not on the configured API origin"):
+        client._build_url("https://evil.example/mta/v1/emails")

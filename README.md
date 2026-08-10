@@ -100,7 +100,21 @@ content.
 
 Every failure raises a subclass of `MailkubeError` (`AuthenticationError`, `InvalidRequestError`,
 `RateLimitError` — which carries `.retry_after` — `ServerError`, `MailkubeConnectionError`, …). Each
-API error exposes `.error_name`, `.message`, and `.status_code`.
+API error exposes `.error_name`, `.message`, `.status_code`, and `.request_id` (quote it to support).
+
+The HTTP status picks the exception class; `.error_name` says precisely what went wrong. Compare it
+against the `ErrorName` constants — it stays a plain string, so an error name newer than your
+installed SDK is still reported verbatim rather than crashing:
+
+```python
+from mailkube import ErrorName, InvalidRequestError
+
+try:
+    client.emails.send(...)
+except InvalidRequestError as exc:
+    if exc.error_name == ErrorName.QUOTA_EXCEEDED:
+        ...
+```
 
 ### Threading
 
@@ -132,9 +146,107 @@ email = client.emails.send(
 )
 ```
 
-Validation is server-side: names and values allow the `[A-Za-z0-9_-]` charset and up to 256
-characters each, values may be blank, at most 20 tags per send, and names must be unique. Tag
+Validation is server-side: names and values allow the `[A-Za-z0-9_-]` charset, a name is at most
+16 characters and a value at most 32, values may be blank, at most 20 tags per send, and names must
+be unique. Tag
 values are not encrypted, so keep personal data out of them.
+
+## Schedule an email
+
+Pass `scheduled_at` and the message is accepted now and delivered later. Give it either an
+ISO-8601 string **with a timezone offset** or a timezone-aware `datetime`; it must be in the
+future and within your plan's scheduling horizon (30 days by default):
+
+```python
+from datetime import datetime, timedelta, UTC
+
+email = client.emails.send(
+    from_="Acme <hello@yourdomain.com>",
+    to="customer@example.com",
+    subject="Your weekly digest",
+    html="<p>Here's what happened.</p>",
+    scheduled_at=datetime.now(UTC) + timedelta(hours=2),
+    batch_id="digest-2026-08",       # optional: group sends so you can move or cancel them together
+)
+
+email.is_scheduled     # True
+email.status           # "scheduled"
+email.scheduled_at     # "2026-08-20T07:00:00Z"
+email.id               # use this to retrieve, reschedule, or cancel it
+```
+
+An immediate send is unaffected: `is_scheduled` is `False` and `status` / `scheduled_at` /
+`batch_id` stay `None`. `batch_id` is only valid alongside `scheduled_at`.
+
+## Manage scheduled emails
+
+Until it is due, a scheduled email lives in `client.scheduled_emails`:
+
+```python
+email = client.scheduled_emails.get(email_id)
+email = client.scheduled_emails.update(email_id, scheduled_at="2026-08-21T07:00:00Z")
+client.scheduled_emails.cancel(email_id)
+```
+
+### Listing
+
+`list` returns one page; `iter_all` walks every page lazily, following the links the API
+returns:
+
+```python
+page = client.scheduled_emails.list(status="scheduled", batch_id="digest-2026-08")
+page.data                       # list[ScheduledEmail]
+page.pagination.total_count
+page.has_more
+
+for email in client.scheduled_emails.iter_all(status=["scheduled", "failed"]):
+    print(email.id, email.scheduled_at, email.subject)
+```
+
+| Filter | Accepts |
+|---|---|
+| `status` | `"scheduled"`, `"canceled"`, `"failed"` — one, or a list. A sent email has left the collection, so `"sent"` is a validation error, not an empty result. |
+| `batch_id` | The batch label used at send time. |
+| `scheduled_at_gte` / `scheduled_at_lte` | ISO-8601 with an offset, or an aware `datetime`. |
+| `page` | 1-based page number. |
+
+Timestamps come back as the verbatim ISO-8601 strings the API sent — call
+`datetime.fromisoformat` if you want objects.
+
+### Batches
+
+Everything sent under one `batch_id` moves or cancels together:
+
+```python
+result = client.scheduled_emails.batches.update("digest-2026-08", scheduled_at="2026-08-21T07:00:00Z")
+result.rescheduled_count        # 2
+
+result = client.scheduled_emails.batches.cancel("digest-2026-08")
+result.canceled_count           # 2
+```
+
+An unknown batch is a no-op reporting `0`, not an error.
+
+`AsyncMailkube` exposes the identical surface — `await client.scheduled_emails.get(...)`, and
+`async for email in client.scheduled_emails.iter_all(...)`.
+
+### Scheduling errors
+
+The names specific to this surface:
+
+```python
+from mailkube import ErrorName, InvalidRequestError, NotFoundError
+
+try:
+    client.scheduled_emails.cancel(email_id)
+except NotFoundError:
+    ...                                              # scheduled_email_not_found
+except InvalidRequestError as exc:
+    if exc.error_name == ErrorName.SCHEDULED_EMAIL_NOT_PENDING:
+        ...                                          # already sent or canceled
+```
+
+Every API error also carries `.request_id` — quote it when contacting support.
 
 ## Verify webhooks
 
@@ -184,6 +296,11 @@ Runnable scripts in [`examples/`](examples):
 - [`send_with_attachments.py`](examples/send_with_attachments.py) — attach a file from raw bytes
 - [`send_with_tags.py`](examples/send_with_tags.py) — tag a send for filtering and reporting
 - [`send_with_template.py`](examples/send_with_template.py) — send from a saved template
+- [`schedule_send.py`](examples/schedule_send.py) — schedule a send, then inspect the ack
+- [`manage_scheduled_emails.py`](examples/manage_scheduled_emails.py) — list, paginate,
+  retrieve, reschedule and cancel
+- [`schedule_batch.py`](examples/schedule_batch.py) — schedule a batch, then move or cancel it
+  as a unit
 - [`webhook_receiver_flask.py`](examples/webhook_receiver_flask.py) — verify and dispatch webhooks
   in a Flask app
 
