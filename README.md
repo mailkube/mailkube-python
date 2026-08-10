@@ -1,6 +1,6 @@
 # mailkube
 
-[![CI](https://github.com/mailkube/mailkube/actions/workflows/ci.yml/badge.svg)](https://github.com/mailkube/mailkube/actions/workflows/ci.yml)
+[![CI](https://github.com/mailkube/mailkube-python/actions/workflows/ci.yml/badge.svg)](https://github.com/mailkube/mailkube-python/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/mailkube)](https://pypi.org/project/mailkube/)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue)](pyproject.toml)
