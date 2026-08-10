@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
+import importlib.metadata
 import pathlib
 
 import mailkube
 
 
-def test_version_is_exposed():
-    assert mailkube.__version__ == "0.1.0"
+def test_version_matches_the_installed_distribution():
+    """The reported version must be the released one, not a literal that can drift from it."""
+    assert mailkube.__version__ == importlib.metadata.version("mailkube")
+    assert mailkube.__version__ != "0.0.0", "the distribution metadata was not found"
+
+
+def test_user_agent_carries_the_real_version():
+    client = mailkube.Mailkube(api_key="mk_test")
+
+    assert client._default_headers()["User-Agent"] == f"mailkube-python/{mailkube.__version__}"
 
 
 def test_public_symbols_are_exported():
