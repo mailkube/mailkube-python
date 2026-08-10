@@ -8,16 +8,16 @@ differ (a blocking call vs an ``await``).
 
 from __future__ import annotations
 
-import base64
 import json
 import os
 from collections.abc import Mapping
 from typing import cast
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 from ._exceptions import MailkubeError, raise_for_response
 from ._logging import get_logger
-from ._transport import RequestSpec
+from ._serialization import encode_attachments, to_iso
+from ._transport import ModelT, RequestSpec
 from ._version import __version__
 from .types.params import Attachment, SendEmailParams
 from .types.responses import Email
@@ -29,18 +29,7 @@ _SEND_PATH = "emails"
 _OK_STATUS = range(200, 300)
 _WIRE_RENAMES = {"from_": "from"}
 _HEADER_PARAMS = {"idempotency_key": "Idempotency-Key"}
-
-
-def _encode_attachments(attachments: list[Attachment]) -> list[dict[str, object]]:
-    """Return attachments with any raw ``bytes`` ``content`` base64-encoded to ``str``."""
-    encoded: list[dict[str, object]] = []
-    for attachment in attachments:
-        item = dict(attachment)
-        content = item.get("content")
-        if isinstance(content, bytes):
-            item["content"] = base64.b64encode(content).decode("ascii")
-        encoded.append(item)
-    return encoded
+_ISO_PARAMS = frozenset({"scheduled_at", "scheduled_at_gte", "scheduled_at_lte"})
 
 
 def _decode_json(raw: bytes) -> object:
@@ -70,6 +59,18 @@ def _parse_retry_after(value: str | None) -> int | None:
         return int(value)
     except ValueError:
         return None
+
+
+def _optional_str(body: Mapping[str, object], key: str) -> str | None:
+    """Return ``body[key]`` as text, or ``None`` when absent or explicitly null."""
+    value = body.get(key)
+    return None if value is None else str(value)
+
+
+def _origin(url: str) -> tuple[str, str]:
+    """Return the ``(scheme, netloc)`` origin of a URL."""
+    parts = urlsplit(url)
+    return parts.scheme, parts.netloc
 
 
 class BaseClient:
@@ -109,13 +110,39 @@ class BaseClient:
     def _build_url(self, path: str) -> str:
         """Join a relative path onto the (trailing-slash) base URL.
 
+        A :class:`RequestSpec` may also carry an absolute URL the API itself issued — a
+        pagination link. ``urljoin`` returns such a URL unchanged, so following one needs
+        no special plumbing, but it must not be followed blindly: every request carries the
+        ``Authorization`` header, so a link naming a foreign host would hand the API key to
+        that host. Absolute URLs are therefore accepted only from the base URL's own origin.
+
         Args:
-            path: A path relative to the base URL (e.g. ``"emails"``).
+            path: A path relative to the base URL (e.g. ``"emails"``), or an absolute URL
+                previously issued by the API.
 
         Returns:
             The absolute request URL.
+
+        Raises:
+            MailkubeError: If ``path`` is an absolute URL on a different origin.
         """
-        return urljoin(self._base_url, path)
+        url = urljoin(self._base_url, path)
+        if _origin(url) != _origin(self._base_url):
+            raise MailkubeError(  # noqa: TRY003 — names the offending URL, which is the whole point
+                f"Refusing to follow {url!r}: it is not on the configured API origin."
+            )
+        return url
+
+    def _prepare(self, spec: RequestSpec) -> tuple[str, dict[str, str]]:
+        """Return the absolute URL and the merged headers for a request.
+
+        Args:
+            spec: The request to prepare.
+
+        Returns:
+            The request URL and the default headers overlaid with the spec's own.
+        """
+        return self._build_url(spec.path), {**self._default_headers(), **spec.headers}
 
     def _default_headers(self) -> dict[str, str]:
         """Return the auth + non-browser User-Agent headers sent on every request."""
@@ -130,7 +157,8 @@ class BaseClient:
         """Serialize send parameters into a request body + per-request headers.
 
         Renames ``from_`` to the wire ``from``, splits ``idempotency_key`` into the
-        ``Idempotency-Key`` header, and base64-encodes any ``bytes`` attachment content.
+        ``Idempotency-Key`` header, renders ``datetime`` instants as ISO-8601, and
+        base64-encodes any ``bytes`` attachment content.
 
         Args:
             params: The keyword parameters passed to ``emails.send``.
@@ -144,13 +172,44 @@ class BaseClient:
             if key in _HEADER_PARAMS:
                 headers[_HEADER_PARAMS[key]] = str(value)
             elif key == "attachments":
-                body["attachments"] = _encode_attachments(cast("list[Attachment]", value))
+                body["attachments"] = encode_attachments(cast("list[Attachment]", value))
+            elif key in _ISO_PARAMS:
+                body[key] = to_iso(value)
             else:
                 body[_WIRE_RENAMES.get(key, key)] = value
         return RequestSpec(path=_SEND_PATH, json=body, headers=headers)
 
-    def _process_response(self, status_code: int, raw_bytes: bytes, headers: Mapping[str, str]) -> Email:
-        """Turn a raw HTTP response into an :class:`Email` or raise the mapped error.
+    @staticmethod
+    def _ok_body(status_code: int, raw_bytes: bytes, headers: Mapping[str, str]) -> object:
+        """Return the decoded body of a successful response, or raise the mapped error.
+
+        This is the single place a non-2xx status becomes an exception, so every verb —
+        present and future — reports failures identically.
+
+        Args:
+            status_code: The HTTP status code.
+            raw_bytes: The raw response body.
+            headers: The response headers.
+
+        Returns:
+            The decoded 2xx body (``None`` when empty or undecodable).
+
+        Raises:
+            APIError: On any non-2xx response (subclass chosen by status).
+        """
+        body = _decode_json(raw_bytes)
+        if status_code in _OK_STATUS:
+            return body
+        raise_for_response(
+            status_code,
+            body,
+            _parse_retry_after(_header(headers, "retry-after")),
+            _header(headers, "x-request-id"),
+        )
+
+    @classmethod
+    def _process_response(cls, status_code: int, raw_bytes: bytes, headers: Mapping[str, str]) -> Email:
+        """Turn a raw send response into an :class:`Email` or raise the mapped error.
 
         Args:
             status_code: The HTTP status code.
@@ -164,20 +223,49 @@ class BaseClient:
             MailkubeError: On a 2xx response with a missing/undecodable body.
             APIError: On any non-2xx response (subclass chosen by status).
         """
-        body = _decode_json(raw_bytes)
-        if status_code in _OK_STATUS:
-            if not isinstance(body, dict) or "id" not in body:
-                raise MailkubeError(  # noqa: TRY003 — surfaces a malformed success body clearly
-                    f"Expected a JSON body with an 'id' from a {status_code} response."
-                )
-            message_id = body.get("message_id")
-            replayed = (_header(headers, "idempotent-replayed") or "").lower() == "true"
-            return Email(
-                id=str(body["id"]),
-                message_id=str(message_id) if message_id is not None else None,
-                idempotent_replayed=replayed,
-                request_id=_header(headers, "x-request-id"),
-                headers=dict(headers),
+        body = cls._ok_body(status_code, raw_bytes, headers)
+        if not isinstance(body, dict) or "id" not in body:
+            raise MailkubeError(  # noqa: TRY003 — surfaces a malformed success body clearly
+                f"Expected a JSON body with an 'id' from a {status_code} response."
             )
-        retry_after = _parse_retry_after(_header(headers, "retry-after"))
-        raise_for_response(status_code, body, retry_after)
+        replayed = (_header(headers, "idempotent-replayed") or "").lower() == "true"
+        return Email(
+            id=str(body["id"]),
+            message_id=_optional_str(body, "message_id"),
+            idempotent_replayed=replayed,
+            request_id=_header(headers, "x-request-id"),
+            headers=dict(headers),
+            status=_optional_str(body, "status"),
+            scheduled_at=_optional_str(body, "scheduled_at"),
+            batch_id=_optional_str(body, "batch_id"),
+        )
+
+    @classmethod
+    def _process_model(
+        cls,
+        model: type[ModelT],
+        status_code: int,
+        raw_bytes: bytes,
+        headers: Mapping[str, str],
+    ) -> ModelT:
+        """Parse a successful JSON-object response into ``model``.
+
+        Args:
+            model: The response model to validate the body against.
+            status_code: The HTTP status code.
+            raw_bytes: The raw response body.
+            headers: The response headers.
+
+        Returns:
+            The parsed model.
+
+        Raises:
+            MailkubeError: On a 2xx response whose body is not a JSON object.
+            APIError: On any non-2xx response (subclass chosen by status).
+        """
+        body = cls._ok_body(status_code, raw_bytes, headers)
+        if not isinstance(body, dict):
+            raise MailkubeError(  # noqa: TRY003 — surfaces a malformed success body clearly
+                f"Expected a JSON object from a {status_code} response."
+            )
+        return model.model_validate(body)

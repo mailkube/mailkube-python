@@ -8,6 +8,7 @@ for validation, and its error names are richer than anything the SDK would repro
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import NotRequired, TypedDict
 
 Recipients = str | list[str]
@@ -35,9 +36,9 @@ class Tag(TypedDict):
     Tags are forwarded to the server, which denormalizes them onto the sending-log so
     you can filter, export, and dashboard sends by tag, and so they ride along on
     delivery webhooks. Validation is server-side (the authoritative gate): names and
-    values are limited to the ``[A-Za-z0-9_-]`` charset and 256 characters each, values
-    may be blank, at most 20 tags per send, and names must be unique. Tag values are not
-    encrypted, so do not put personal data in them.
+    values are limited to the ``[A-Za-z0-9_-]`` charset, a name to 16 characters and a value
+    to 32, values may be blank, at most 20 tags per send, and names must be unique. Tag values
+    are not encrypted, so do not put personal data in them.
 
     Attributes:
         name: Tag name.
@@ -74,6 +75,13 @@ class SendEmailParams(TypedDict):
         variables: Values for the template's ``{{variable}}`` placeholders.
         topic: Mailing-list topic slug this send is attributed to.
         idempotency_key: Idempotency key; sent as the ``Idempotency-Key`` header.
+        scheduled_at: When to deliver the message instead of sending it now. ISO-8601
+            **with a timezone offset** (``"2026-08-20T07:00:00Z"``), or a timezone-aware
+            ``datetime``. Must be in the future and within the plan's scheduling horizon.
+            A scheduled send is acknowledged ``202`` and manageable via
+            ``client.scheduled_emails``.
+        batch_id: A label grouping several scheduled sends so they can be rescheduled or
+            canceled together. Only valid alongside ``scheduled_at``.
     """
 
     from_: str
@@ -92,3 +100,57 @@ class SendEmailParams(TypedDict):
     variables: NotRequired[dict[str, str]]
     topic: NotRequired[str]
     idempotency_key: NotRequired[str]
+    scheduled_at: NotRequired[str | datetime]
+    batch_id: NotRequired[str]
+
+
+class ScheduledEmailListParams(TypedDict, total=False):
+    """Filters for :meth:`~mailkube.resources.scheduled_emails.ScheduledEmailsResource.list`.
+
+    Every filter is optional; an omitted filter is simply not applied. The listing is
+    scoped server-side to a rolling window around now, so a bound outside that window in
+    the direction that can never match is rejected rather than silently ignored.
+
+    Attributes:
+        status: One status, or several. Only ``"scheduled"``, ``"canceled"`` and
+            ``"failed"`` can be listed — a sent email has left the collection, so
+            ``"sent"`` is a validation error rather than an empty result.
+        batch_id: Only emails grouped under this batch label.
+        scheduled_at_gte: Only emails due at or after this instant. ISO-8601 with an
+            offset, or a timezone-aware ``datetime``.
+        scheduled_at_lte: Only emails due at or before this instant.
+        page: The 1-based page number to fetch.
+    """
+
+    status: str | list[str]
+    batch_id: str
+    scheduled_at_gte: str | datetime
+    scheduled_at_lte: str | datetime
+    page: int
+
+
+class ScheduledEmailUpdateParams(TypedDict):
+    """Parameters for rescheduling one scheduled email.
+
+    Attributes:
+        scheduled_at: The new due time. Same rule as on a send: ISO-8601 with an offset
+            (or a timezone-aware ``datetime``), in the future, within the horizon.
+        batch_id: Optionally move the email into (or out of) a batch at the same time.
+    """
+
+    scheduled_at: str | datetime
+    batch_id: NotRequired[str]
+
+
+class ScheduledEmailBatchUpdateParams(TypedDict):
+    """Parameters for rescheduling a whole batch.
+
+    There is deliberately no ``batch_id`` here: the batch is identified by the path, and
+    the server rejects a second one in the body rather than let it decide which batch
+    actually moves.
+
+    Attributes:
+        scheduled_at: The new due time applied to every pending email in the batch.
+    """
+
+    scheduled_at: str | datetime

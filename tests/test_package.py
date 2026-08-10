@@ -12,7 +12,27 @@ def test_version_is_exposed():
 
 
 def test_public_symbols_are_exported():
-    for name in ("Mailkube", "AsyncMailkube", "verify", "verify_signature", "parse_event", "Email", "MailkubeError"):
+    exported = (
+        "Mailkube",
+        "AsyncMailkube",
+        "verify",
+        "verify_signature",
+        "parse_event",
+        "Email",
+        "MailkubeError",
+        "ErrorName",
+        "ScheduledEmail",
+        "ScheduledEmailPage",
+        "ScheduledEmailListParams",
+        "ScheduledEmailUpdateParams",
+        "ScheduledEmailBatchUpdateParams",
+        "ScheduledEmailBatchCancel",
+        "ScheduledEmailBatchUpdate",
+        "CanceledScheduledEmail",
+        "Pagination",
+        "PageSteps",
+    )
+    for name in exported:
         assert hasattr(mailkube, name)
         assert name in mailkube.__all__
 

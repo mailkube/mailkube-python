@@ -8,7 +8,9 @@ import httpx
 
 from ._base_client import BaseClient
 from ._exceptions import MailkubeConnectionError
+from ._transport import ModelT, RequestSpec
 from .resources.emails import EmailsResource
+from .resources.scheduled_emails import ScheduledEmailsResource
 from .types.params import SendEmailParams
 from .types.responses import Email
 
@@ -47,6 +49,29 @@ class Mailkube(BaseClient):
         self._owns_http = http_client is None
         self._http = http_client if http_client is not None else httpx.Client(timeout=self._timeout)
         self.emails = EmailsResource(self)
+        self.scheduled_emails = ScheduledEmailsResource(self)
+
+    def _raw(self, spec: RequestSpec) -> httpx.Response:
+        """Perform one HTTP round trip.
+
+        This is the only method in the package that differs between the sync and async
+        clients; everything else — spec building, serialization, response parsing — is
+        shared, which is what keeps the two flavours from drifting.
+
+        Args:
+            spec: The request to perform.
+
+        Returns:
+            The raw response.
+
+        Raises:
+            MailkubeConnectionError: On a transport failure or timeout.
+        """
+        url, headers = self._prepare(spec)
+        try:
+            return self._http.request(spec.method, url, json=spec.json, params=spec.params, headers=headers)
+        except httpx.TransportError as exc:
+            raise MailkubeConnectionError(str(exc)) from exc
 
     def send_email(self, params: SendEmailParams) -> Email:
         """Build and POST a send request, returning the typed :class:`Email`.
@@ -61,13 +86,25 @@ class Mailkube(BaseClient):
             MailkubeConnectionError: On a transport failure or timeout.
             APIError: On any non-2xx response.
         """
-        spec = self._build_send_body(params)
-        headers = {**self._default_headers(), **spec.headers}
-        try:
-            response = self._http.post(self._build_url(spec.path), json=spec.json, headers=headers)
-        except httpx.TransportError as exc:
-            raise MailkubeConnectionError(str(exc)) from exc
+        response = self._raw(self._build_send_body(params))
         return self._process_response(response.status_code, response.content, response.headers)
+
+    def request(self, spec: RequestSpec, model: type[ModelT]) -> ModelT:
+        """Perform a request and parse its body into ``model``.
+
+        Args:
+            spec: The request to perform.
+            model: The response model to parse into.
+
+        Returns:
+            The parsed model.
+
+        Raises:
+            MailkubeConnectionError: On a transport failure or timeout.
+            APIError: On any non-2xx response.
+        """
+        response = self._raw(spec)
+        return self._process_model(model, response.status_code, response.content, response.headers)
 
     def close(self) -> None:
         """Close the underlying HTTP client, unless it was injected by the caller."""

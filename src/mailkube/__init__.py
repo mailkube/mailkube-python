@@ -12,6 +12,12 @@ Send transactional email and verify inbound webhooks:
     ... )
     >>> email.id
 
+Schedule a send for later and manage it until it is due:
+
+    >>> email = client.emails.send(..., scheduled_at="2026-08-20T07:00:00Z")
+    >>> client.scheduled_emails.update(email.id, scheduled_at="2026-08-21T07:00:00Z")
+    >>> client.scheduled_emails.cancel(email.id)
+
     >>> from mailkube import verify
     >>> event = verify(raw_body, request.headers, signing_secret)
 """
@@ -25,6 +31,7 @@ from ._exceptions import (
     AuthenticationError,
     BadRequestError,
     ConflictError,
+    ErrorName,
     InvalidRequestError,
     MailkubeConnectionError,
     MailkubeError,
@@ -47,8 +54,25 @@ from .types.events import (
     WebhookEvent,
     WebhookStatusEvent,
 )
-from .types.params import Attachment, Recipients, SendEmailParams, Tag
-from .types.responses import Email
+from .types.params import (
+    Attachment,
+    Recipients,
+    ScheduledEmailBatchUpdateParams,
+    ScheduledEmailListParams,
+    ScheduledEmailUpdateParams,
+    SendEmailParams,
+    Tag,
+)
+from .types.responses import (
+    CanceledScheduledEmail,
+    Email,
+    PageSteps,
+    Pagination,
+    ScheduledEmail,
+    ScheduledEmailBatchCancel,
+    ScheduledEmailBatchUpdate,
+    ScheduledEmailPage,
+)
 from .webhooks import parse_event, verify, verify_signature
 
 __all__ = [
@@ -57,6 +81,7 @@ __all__ = [
     "Attachment",
     "AuthenticationError",
     "BadRequestError",
+    "CanceledScheduledEmail",
     "ConflictError",
     "DomainStatusEvent",
     "Email",
@@ -66,13 +91,23 @@ __all__ = [
     "EmailDeliveryDelayedEvent",
     "EmailOpenedEvent",
     "EmailSuppressedEvent",
+    "ErrorName",
     "InvalidRequestError",
     "Mailkube",
     "MailkubeConnectionError",
     "MailkubeError",
     "NotFoundError",
+    "PageSteps",
+    "Pagination",
     "RateLimitError",
     "Recipients",
+    "ScheduledEmail",
+    "ScheduledEmailBatchCancel",
+    "ScheduledEmailBatchUpdate",
+    "ScheduledEmailBatchUpdateParams",
+    "ScheduledEmailListParams",
+    "ScheduledEmailPage",
+    "ScheduledEmailUpdateParams",
     "SendEmailParams",
     "ServerError",
     "SignatureVerificationError",

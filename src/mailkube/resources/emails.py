@@ -4,21 +4,14 @@ from __future__ import annotations
 
 from typing import Unpack
 
+from .._resource import Resource
 from .._transport import AsyncSendTransport, SendTransport
 from ..types.params import SendEmailParams
 from ..types.responses import Email
 
 
-class EmailsResource:
+class EmailsResource(Resource[SendTransport]):
     """Synchronous ``client.emails`` namespace."""
-
-    def __init__(self, transport: SendTransport) -> None:
-        """Bind the resource to a transport.
-
-        Args:
-            transport: The client that performs the send.
-        """
-        self._transport = transport
 
     def send(self, **params: Unpack[SendEmailParams]) -> Email:
         """Send an email.
@@ -27,6 +20,10 @@ class EmailsResource:
         arguments — ``from_``, ``to``, and ``subject`` are required; supply ``html`` and/or
         ``text`` for a raw send, or ``template_id`` for a template. ``idempotency_key`` is
         sent as the ``Idempotency-Key`` header.
+
+        Pass ``scheduled_at`` to schedule the send instead of delivering it now; the result
+        then reports :attr:`~mailkube.types.responses.Email.is_scheduled` and the email can
+        be managed through ``client.scheduled_emails``.
 
         Args:
             **params: The send parameters (see :class:`~mailkube.types.params.SendEmailParams`).
@@ -37,16 +34,8 @@ class EmailsResource:
         return self._transport.send_email(params)
 
 
-class AsyncEmailsResource:
+class AsyncEmailsResource(Resource[AsyncSendTransport]):
     """Asynchronous ``client.emails`` namespace."""
-
-    def __init__(self, transport: AsyncSendTransport) -> None:
-        """Bind the resource to an async transport.
-
-        Args:
-            transport: The async client that performs the send.
-        """
-        self._transport = transport
 
     async def send(self, **params: Unpack[SendEmailParams]) -> Email:
         """Send an email (async).

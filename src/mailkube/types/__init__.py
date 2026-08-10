@@ -27,11 +27,29 @@ from .events import (
     WebhookStatusData,
     WebhookStatusEvent,
 )
-from .params import Attachment, Recipients, SendEmailParams, Tag
-from .responses import Email
+from .params import (
+    Attachment,
+    Recipients,
+    ScheduledEmailBatchUpdateParams,
+    ScheduledEmailListParams,
+    ScheduledEmailUpdateParams,
+    SendEmailParams,
+    Tag,
+)
+from .responses import (
+    CanceledScheduledEmail,
+    Email,
+    PageSteps,
+    Pagination,
+    ScheduledEmail,
+    ScheduledEmailBatchCancel,
+    ScheduledEmailBatchUpdate,
+    ScheduledEmailPage,
+)
 
 __all__ = [
     "Attachment",
+    "CanceledScheduledEmail",
     "ClickContext",
     "ClickedData",
     "DelayedData",
@@ -50,7 +68,16 @@ __all__ = [
     "FailureContext",
     "MessageContext",
     "OpenedData",
+    "PageSteps",
+    "Pagination",
     "Recipients",
+    "ScheduledEmail",
+    "ScheduledEmailBatchCancel",
+    "ScheduledEmailBatchUpdate",
+    "ScheduledEmailBatchUpdateParams",
+    "ScheduledEmailListParams",
+    "ScheduledEmailPage",
+    "ScheduledEmailUpdateParams",
     "SendEmailParams",
     "SuppressedData",
     "SuppressionContext",

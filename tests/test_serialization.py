@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import base64
+from datetime import UTC, datetime
 
 from mailkube._base_client import BaseClient
+from mailkube._serialization import query_value, to_iso
 
 
 def _build(**params):
@@ -59,3 +61,34 @@ def test_tags_passthrough():
     tags = [{"name": "campaign", "value": "spring24"}, {"name": "plan", "value": "pro"}]
     spec = _build(from_="a@x.com", to="b@y.com", subject="Hi", html="x", tags=tags)
     assert spec.json["tags"] == tags
+
+
+def test_scheduled_at_datetime_is_rendered_as_iso():
+    spec = _build(
+        from_="a@x.com",
+        to="b@y.com",
+        subject="Hi",
+        html="x",
+        scheduled_at=datetime(2026, 8, 20, 7, 0, tzinfo=UTC),
+        batch_id="campaign-x",
+    )
+    assert spec.json["scheduled_at"] == "2026-08-20T07:00:00+00:00"
+    assert spec.json["batch_id"] == "campaign-x"
+
+
+def test_scheduled_at_string_passes_through_untouched():
+    spec = _build(from_="a@x.com", to="b@y.com", subject="Hi", html="x", scheduled_at="2026-08-20T07:00:00Z")
+    assert spec.json["scheduled_at"] == "2026-08-20T07:00:00Z"
+
+
+def test_to_iso_renders_datetimes_and_passes_other_values_through():
+    assert to_iso(datetime(2026, 8, 20, 7, 0, tzinfo=UTC)) == "2026-08-20T07:00:00+00:00"
+    assert to_iso("2026-08-20T07:00:00Z") == "2026-08-20T07:00:00Z"
+    assert to_iso(2) == "2"
+
+
+def test_query_value_joins_lists_and_renders_scalars():
+    assert query_value(["scheduled", "canceled"]) == "scheduled,canceled"
+    assert query_value([datetime(2026, 8, 20, 7, 0, tzinfo=UTC)]) == "2026-08-20T07:00:00+00:00"
+    assert query_value("scheduled") == "scheduled"
+    assert query_value(3) == "3"
