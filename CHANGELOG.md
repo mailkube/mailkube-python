@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.3.0 (2026-08-10)
+
+### Bug Fixes
+
+- **version**: Report the released version instead of a stale literal
+  ([`0edb944`](https://github.com/mailkube/mailkube-python/commit/0edb944ea6e409a17fc595cbce3a4ec7497f0d5c))
+
+### Features
+
+- **scheduled**: Expose the full scheduled-email surface
+  ([`93df5e1`](https://github.com/mailkube/mailkube-python/commit/93df5e10abd7dee2c6a4f6448cda6a76923f9ab5))
+
+
 ## v1.2.0 (2026-08-03)
 
 ### Documentation
