@@ -1,0 +1,38 @@
+name: Shared Rules
+
+# Fail if a `.rules/` file synced from repo-template has drifted from its canonical copy.
+#
+# repo-template's own CI keeps its TEMPLATES in step with common/. Nothing keeps an
+# already-generated repo in step after the canonical file changes, so this job does. It runs on
+# a schedule as well as on PRs, because drift arrives when the OTHER repo changes and this repo
+# may see no commits for months.
+#
+# NOTE: rendered verbatim (see `_copy_without_render` in cookiecutter.json) so GitHub Actions
+# `${{ ... }}` expressions are not mangled by Cookiecutter's Jinja pass.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Mondays, 06:00 UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shared-rules-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shared-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Shared rule drift check
+        env:
+          # Only needed while repo-template is private. GITHUB_TOKEN of THIS repo cannot read
+          # another private repo, so set a fine-grained PAT with read access as SHARED_RULES_TOKEN.
+          GITHUB_TOKEN: ${{ secrets.SHARED_RULES_TOKEN }}
+        run: ./scripts/check-shared-rules.sh
