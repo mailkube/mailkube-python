@@ -29,4 +29,5 @@ Load the relevant rule file from `.rules/` based on the task.
 - **No duplication** — the `jscpd` gate blocks at > 1% duplicated code; extract shared logic.
 - **Conventional Commits** for PR titles (squash-merged); only `feat:`/`fix:`/`perf:` cut a release.
 - **No secrets in the repo** — local config lives in a git-ignored `.env`, excluded from the built package.
-- **Keep `README` / `CHANGELOG` current** with user-visible changes (the changelog is generated on release).
+- **Keep the `README` current** with user-visible changes. There is no `CHANGELOG.md`; the release
+  notes on the GitHub Releases page are the changelog (see `.rules/RELEASE.md`).

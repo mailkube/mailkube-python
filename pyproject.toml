@@ -1,10 +1,12 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "mailkube"
-version = "0.1.0"
+# Derived from the git tag at build time, never stored in the tree. See
+# [tool.hatch.version] below and .rules/RELEASE.md.
+dynamic = ["version"]
 description = "Mailkube Python SDK"
 authors = [{ name = "Mailtactic, Corp." }]
 license = "Apache-2.0"
@@ -38,6 +40,17 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mailkube"]
+
+# The version IS the git tag. hatch-vcs resolves `v1.5.0` to `1.5.0` at build
+# time and writes it into the distribution metadata, which `mailkube._version`
+# reads back. Nothing has to be committed for a release to carry its version.
+[tool.hatch.version]
+source = "vcs"
+
+# Bakes the resolved version into the sdist, so building a wheel from an sdist
+# (which `uv build` does) works with no .git directory present.
+[tool.hatch.build.hooks.vcs]
+version-file = "src/mailkube/_vcs_version.py"
 
 # ── Lint & format ─────────────────────────────────────────────────────────────
 [tool.ruff]
@@ -84,14 +97,15 @@ fail_under = 90
 
 # ── Release automation (Conventional Commits → SemVer → PyPI via OIDC) ─────────
 [tool.semantic_release]
-version_toml = ["pyproject.toml:project.version"]
-build_command = "pip install uv && uv build"
+# No `version_toml` and no `version_variables` on purpose: there is no version
+# literal anywhere in the tree to rewrite. The tag is the single source of
+# truth, semantic-release only creates it, and hatch-vcs reads it back at build
+# time. This is what lets the release write NOTHING to `main`. See
+# .rules/RELEASE.md for why a bot commit to `main` is not an option.
+build_command = ""
 commit_parser = "conventional"
 major_on_zero = false
 tag_format = "v{version}"
 
 [tool.semantic_release.branches.main]
 match = "main"
-
-[tool.semantic_release.changelog]
-changelog_file = "CHANGELOG.md"

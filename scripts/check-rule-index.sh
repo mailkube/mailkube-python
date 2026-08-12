@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Fail if any .rules/*.md file is not indexed in CLAUDE.md.
+# Fail if any .rules/*.md file is not indexed in AGENTS.md.
 #
-# The rule index in CLAUDE.md drives progressive disclosure; an unindexed rule is invisible.
+# The rule index in AGENTS.md drives progressive disclosure; an unindexed rule is invisible.
 # Runs against the current working directory (used both by generated repos and the meta-repo).
 set -euo pipefail
 
 rules_dir=".rules"
-index_file="CLAUDE.md"
+index_file="AGENTS.md"
 
 if [[ ! -d "$rules_dir" ]]; then
   echo "No $rules_dir/ directory — nothing to check."

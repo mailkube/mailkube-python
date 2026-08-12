@@ -30,7 +30,7 @@ uv run ruff format --check .                 # formatting
 uv run mypy src                              # strict types
 uv run pytest                                # tests + 90% line+branch coverage gate
 npx --yes jscpd@4 --config .jscpd.json .     # duplication (DRY) gate, blocks at > 1%
-./scripts/check-rule-index.sh                # every .rules/*.md indexed in CLAUDE.md
+./scripts/check-rule-index.sh                # every .rules/*.md indexed in AGENTS.md
 ```
 
 `uv run pre-commit run --all-files` runs the lint/format/jscpd hooks in one shot.
