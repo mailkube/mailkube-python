@@ -13,7 +13,7 @@ Load the relevant rule file from `.rules/` based on the task.
 | Rule File | Load When |
 |---|---|
 | `.rules/SOLID_DRY_KISS.md` | Writing or changing any code — the enforced engineering standards (SOLID, DRY, KISS, coverage, docs) and how to run each gate locally. |
-| `.rules/SDK_CONTRACT.md` | Adding a resource, verb, response model, paginated listing, or **inbound webhook event**: the cross-SDK decisions (config, layering, naming, errors, pagination, webhooks) every mailkube SDK implements identically. Shared verbatim across every SDK; edit it in `repo-template/common/`. |
+| `.rules/SDK_CONTRACT.md` | Adding a resource, verb, response model, paginated listing, or **inbound webhook event**: the cross-SDK decisions (config, layering, naming, errors, pagination, webhooks) every mailkube SDK implements identically. Shared verbatim across every SDK; changes are made centrally. |
 | `.rules/SDK_DESIGN.md` | The same tasks, for the **Python realization**: module layout, `httpx`/pydantic choices, the sync/async single-divergence-point rule, typing idioms, and this SDK's grandfathered exceptions. |
 | `.rules/RELEASE.md` | Touching `release.yml`, `[tool.semantic_release]`, versioning, or the PyPI OIDC publish flow. |
 

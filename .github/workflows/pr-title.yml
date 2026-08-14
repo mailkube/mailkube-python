@@ -2,8 +2,6 @@ name: PR Title
 
 # Enforce Conventional Commits on the PR title, since PRs are squash-merged using it.
 # Only `feat:`, `fix:`, and `perf:` trigger a release on `main`.
-# NOTE: rendered verbatim (see `_copy_without_render` in cookiecutter.json) so GitHub Actions
-# `${{ ... }}` expressions are not mangled by Cookiecutter's Jinja pass.
 on:
   pull_request_target:
     types: [opened, edited, synchronize, reopened]
@@ -13,6 +11,11 @@ permissions:
 
 jobs:
   conventional-title:
+    # The job-level `name:` IS the status-check context GitHub reports, and the branch-protection
+    # checklist tells maintainers to require a check called `PR-title`. Without this line the
+    # context would be the job id `conventional-title`, and a ruleset requiring `PR-title` would
+    # wait forever on a check that never reports — blocking every PR. Keep the two in step.
+    name: PR-title
     runs-on: ubuntu-latest
     steps:
       - uses: amannn/action-semantic-pull-request@v6

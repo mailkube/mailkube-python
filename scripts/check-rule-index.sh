@@ -2,7 +2,7 @@
 # Fail if any .rules/*.md file is not indexed in AGENTS.md.
 #
 # The rule index in AGENTS.md drives progressive disclosure; an unindexed rule is invisible.
-# Runs against the current working directory (used both by generated repos and the meta-repo).
+# Runs against the current working directory.
 set -euo pipefail
 
 rules_dir=".rules"

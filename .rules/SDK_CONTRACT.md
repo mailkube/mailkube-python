@@ -3,9 +3,9 @@
 Load this when adding a **resource, verb, response model, paginated listing, or webhook event**,
 or when wiring a framework integration to the mailkube API.
 
-This file is **language-neutral and shared**. It lives in `common/.rules/` in the `repo-template`
-repo and is synced verbatim into every SDK, so all of them describe one API the same way. Do not
-edit a synced copy: edit `common/.rules/SDK_CONTRACT.md` in `repo-template` and run `make sync`.
+This file is **language-neutral and shared**. Every mailkube SDK carries an identical copy, so all
+of them describe one API the same way. It is maintained centrally and changes land in every SDK
+together: open an issue rather than editing this copy, which would only drift.
 
 The *structure* below must survive translation into any language. Where a language genuinely
 demands a different shape (no keyword arguments, no structural typing, no async), the deviation is
@@ -31,9 +31,8 @@ Identical in every SDK. A caller who learns one SDK knows them all.
 as the source is the language's own convention: installed package metadata where the manifest owns
 the version (Python, Node, Go, PHP), or a version constant that the manifest itself reads where that
 is the idiom (Ruby's `lib/<gem>/version.rb`). What is forbidden is a **second** copy that release
-tooling can bump independently. This is not hypothetical: the Python SDK reported
-`mailkube-python/0.1.0` for releases 1.0.0 through 1.2.0 because the source carried a literal
-alongside the manifest.
+tooling can bump independently. A literal alongside the manifest lets the two drift, and the
+User-Agent then reports a version that was never released.
 
 Where the metadata route can legitimately return nothing — a package running from a build tree
 rather than an installed artifact, which is the normal case in tests and IDEs — fall back to a
@@ -68,8 +67,6 @@ applies and record the outcome in that SDK's own `.rules/SDK_DESIGN.md`:
   where async would mean depending on something outside the language's standard interfaces. Give the
   caller the control they need instead: a per-call cancellation or deadline handle.
 
-Current realizations: Python ships both; Node is async only; Go and PHP are sync only.
-
 **Shipping one client is not the same as being single-threaded.** Where the flavour is sync only
 because concurrency is the caller's concern, the SDK is making a promise about what the caller may
 do with it, and that promise needs the guarantee below behind it.
@@ -94,6 +91,11 @@ breaking the client once and watching it fail.
 A client that reaches this bar holds no mutable per-request state after construction. Freezing or
 otherwise sealing the client where the language allows it turns a whole class of future regression
 into a compile or test failure.
+
+**Where the language's standard runtime has no concurrency primitive at all**, the obligation is
+satisfied by construction and there is nothing to test. Record *that*, with the reason, in the SDK's
+own `.rules/SDK_DESIGN.md`. Do not write a test that spawns nothing and asserts nothing: it reads
+like coverage of a guarantee nobody checked.
 
 **Where an SDK ships both, all divergence between them lives in exactly one method per client.**
 Every verb, every model, every query-string rule is written once. This is the first thing a port

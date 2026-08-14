@@ -14,15 +14,15 @@ Load this when touching `release.yml`, `[tool.semantic_release]`, versioning, or
    time and writes it into the distribution metadata, and `mailkube.__version__` — which is also the
    `User-Agent` every request carries — reads it back from that metadata. The runtime version equals
    the released version by construction. There is **no version literal anywhere in the tree**: do not
-   add one, and do not add `version_toml` or `version_variables`. A hand-maintained (or separately
-   rewritten) literal is how this package spent 1.0.0 through 1.2.0 reporting itself as
-   `mailkube-python/0.1.0`.
+   add one, and do not add `version_toml` or `version_variables`. A literal alongside the manifest
+   lets the two drift, and the User-Agent then reports a version that was never released.
 4. **Publishing is OIDC-only.** The `publish` job builds with `uv build` and uploads via
    `pypa/gh-action-pypi-publish` using GitHub's OIDC token — **no PyPI token is stored anywhere**.
 
 ## Why nothing is committed back to `main`
 
-`main` is covered by a ruleset requiring a pull request and the `test` / `dry` / `docs` checks. A
+`main` is covered by a ruleset requiring a pull request and the `build` / `floor` / `dry` / `docs` /
+`PR-title` checks, plus one `test` context per Python version in the matrix. A
 `chore(release):` commit pushed straight to `main` by the workflow violates it, and the obvious fix
 does not exist: **`github-actions[bot]` cannot be added to a ruleset bypass list.** Bypass is
 available to admins, the maintain/write role, teams, GitHub Apps and Dependabot, and the built-in
@@ -45,6 +45,11 @@ Verified: a clean checkout at `v1.4.0` builds `mailkube-1.4.0` in both the sdist
 ## Required GitHub / PyPI setup (one-time, per repo)
 
 - GitHub **environments** `release` and `pypi` must exist (Settings → Environments), with protection rules.
+- **Branch protection on `main`** must require the status checks by the names GitHub actually
+  reports, which are the **job names**, not the job ids: `build`, `floor`, `dry`, `docs`,
+  `PR-title`, and one `test` context per matrix Python version. `PR-title` reports under that name
+  only because `pr-title.yml` sets a job-level `name:` — requiring a context nothing publishes
+  blocks every PR forever, with no failing check to point at.
 - A **PyPI Trusted Publisher** must be registered for this project pointing at:
   org = this GitHub org, repo = this repo, workflow = `release.yml`, environment = `pypi`.
   For a brand-new package name, use PyPI's **pending publisher** flow (the project need not exist yet).
@@ -56,4 +61,6 @@ Verified: a clean checkout at `v1.4.0` builds `mailkube-1.4.0` in both the sdist
 - Do not re-enable `commit`/`changelog` on the release action, and do not drop `fetch-depth: 0` from
   the `test` or `publish` checkouts. Both failures are silent and land on PyPI.
 - Do not add a `password:`/token to the publish step — that defeats OIDC and reintroduces a secret.
-- Do not gate `release.yml` on anything weaker than the full `ci.yml` (`test` + `dry` + `docs`).
+- Do not gate `release.yml` on anything weaker than the full `ci.yml` (`test` + `build` + `floor` +
+  `dry` + `docs`). In particular `build` is what keeps a packaging failure from surfacing only
+  after the tag is cut, when it can no longer be fixed without burning a version.

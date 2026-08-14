@@ -5,7 +5,7 @@ model, paginated listing, or webhook event**.
 
 `SDK_CONTRACT.md` is the shared, language-neutral constitution: configuration, layering, naming,
 response-model rules, pagination, the error model, and the webhook contract, all of which every
-mailkube SDK implements identically. It is synced from `repo-template/common/` and must not be
+mailkube SDK implements identically. It is shared verbatim across every mailkube SDK and must not be
 edited here.
 
 **This file covers only what is specific to Python**: the module layout, the chosen libraries, the
