@@ -1,9 +1,9 @@
 """The package version, read from the installed distribution metadata.
 
-There is deliberately **no literal** here. semantic-release bumps ``project.version`` in
-``pyproject.toml`` (``version_toml``), the build writes that number into the distribution
-metadata, and this module reads it back — so the runtime version equals the released
-version by construction rather than by discipline.
+There is deliberately **no literal** here, and none anywhere else in the tree.
+semantic-release creates the git tag, ``hatch-vcs`` resolves that tag into the
+distribution metadata at build time, and this module reads it back — so the runtime version
+equals the released version by construction rather than by discipline.
 
 A second, hand-maintained constant is precisely how a package ends up reporting a version
 it is not: this module pinned ``0.1.0`` while releases went out as ``1.0.0`` through

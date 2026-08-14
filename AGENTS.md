@@ -13,7 +13,8 @@ Load the relevant rule file from `.rules/` based on the task.
 | Rule File | Load When |
 |---|---|
 | `.rules/SOLID_DRY_KISS.md` | Writing or changing any code — the enforced engineering standards (SOLID, DRY, KISS, coverage, docs) and how to run each gate locally. |
-| `.rules/SDK_DESIGN.md` | Adding a resource, verb, response model, paginated listing, or **inbound webhook event** — the layering, sync/async parity rule, resource + verb naming, response-model conventions, pagination contract, error model, and event-catalogue rules that every mailkube SDK mirrors. |
+| `.rules/SDK_CONTRACT.md` | Adding a resource, verb, response model, paginated listing, or **inbound webhook event**: the cross-SDK decisions (config, layering, naming, errors, pagination, webhooks) every mailkube SDK implements identically. Shared verbatim across every SDK; changes are made centrally. |
+| `.rules/SDK_DESIGN.md` | The same tasks, for the **Python realization**: module layout, `httpx`/pydantic choices, the sync/async single-divergence-point rule, typing idioms, and this SDK's grandfathered exceptions. |
 | `.rules/RELEASE.md` | Touching `release.yml`, `[tool.semantic_release]`, versioning, or the PyPI OIDC publish flow. |
 
 ## Key Conventions (always apply)
@@ -28,4 +29,5 @@ Load the relevant rule file from `.rules/` based on the task.
 - **No duplication** — the `jscpd` gate blocks at > 1% duplicated code; extract shared logic.
 - **Conventional Commits** for PR titles (squash-merged); only `feat:`/`fix:`/`perf:` cut a release.
 - **No secrets in the repo** — local config lives in a git-ignored `.env`, excluded from the built package.
-- **Keep `README` / `CHANGELOG` current** with user-visible changes (the changelog is generated on release).
+- **Keep the `README` current** with user-visible changes. There is no `CHANGELOG.md`; the release
+  notes on the GitHub Releases page are the changelog (see `.rules/RELEASE.md`).

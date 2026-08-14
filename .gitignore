@@ -11,6 +11,9 @@ venv/
 # Build artifacts
 build/
 dist/
+# Written into the source tree by hatch-vcs at build time so an sdist carries
+# its version with no .git present. Generated, never committed.
+src/mailkube/_vcs_version.py
 
 # Tooling caches
 .ruff_cache/

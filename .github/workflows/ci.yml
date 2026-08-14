@@ -1,8 +1,11 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
+  # No `push: branches: [main]` trigger on purpose. release.yml already runs this entire workflow
+  # through `workflow_call` on every push to `main`, and both runs land in the same
+  # `ci-${{ github.ref }}` concurrency group with cancel-in-progress. A direct trigger therefore
+  # only ever races the gated one: one of the two is cancelled, and the cancelled run is what the
+  # README's CI badge reports. `main` stays fully covered by release.yml's ci-gate job.
   pull_request:
   workflow_call: # so release.yml can gate on the full CI
 
@@ -18,7 +21,12 @@ jobs:
       matrix:
         python-version: ["3.12", "3.13", "3.14"]
     steps:
+      # fetch-depth: 0 is REQUIRED, not tidiness. The version is derived from
+      # the git tag by hatch-vcs at build time, and a shallow clone carries no
+      # tags, so the package would build as an unrelated 0.1.devN.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -40,6 +48,66 @@ jobs:
       - name: Tests + coverage gate (pytest, 90% line+branch)
         run: uv run pytest
 
+  build:
+    # Publish-readiness gate. release.yml only builds AFTER the tag and the GitHub Release are
+    # already pushed, so a packaging or metadata failure there yields a tagged version with nothing
+    # on PyPI — unrecoverable without burning a version. Building on the PR path (and, through
+    # ci-gate, on `main`) is what makes that failure impossible to reach.
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 for the same reason as the `test` job: hatch-vcs derives the version from
+      # the tag, and a shallow clone would build an unrelated 0.1.devN.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Build sdist + wheel
+        run: uv build
+
+      - name: Validate distribution metadata (twine)
+        run: uvx twine check --strict dist/*
+
+      # Asserts the OUTCOME of [tool.hatch.build.targets.sdist], not the list itself: a partial
+      # include list that still ships tests/ or CI config is worse than none, because it reads as
+      # "source only" while it is not.
+      - name: Assert the sdist ships source only
+        run: |
+          python3 -m tarfile -l dist/*.tar.gz > sdist.txt
+          cat sdist.txt
+          if grep -Eq '/(tests|examples|scripts|\.github|\.rules)/' sdist.txt; then
+            echo "::error::the sdist ships non-source directories — check [tool.hatch.build.targets.sdist]"
+            exit 1
+          fi
+
+  floor:
+    # The declared dependency lower bounds are otherwise fiction: every `test` leg installs the
+    # exact uv.lock pins, so `httpx>=0.27` / `pydantic>=2.7` are never exercised and a floor that
+    # no longer works breaks only for the consumer who resolves to it.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      # No --frozen: the point is to re-resolve away from the lockfile, down to the oldest version
+      # each declared floor allows. Pinned to the minimum supported Python for the same reason.
+      - name: Install the oldest allowed dependencies
+        run: uv sync --resolution lowest-direct --python 3.12
+
+      # --no-cov: this job proves the floors import and behave. Coverage is the `test` job's gate.
+      - name: Tests against the dependency floor
+        run: uv run pytest --no-cov
+
   dry:
     # Language-agnostic duplication (DRY) gate — identical across every mailkube repo.
     runs-on: ubuntu-latest
@@ -52,7 +120,7 @@ jobs:
         run: npx --yes jscpd@4 --config .jscpd.json .
 
   docs:
-    # Governance gate: every .rules/*.md must be indexed in CLAUDE.md.
+    # Governance gate: every .rules/*.md must be indexed in AGENTS.md.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

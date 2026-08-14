@@ -36,13 +36,22 @@ def enable_logging(level: int | str = "DEBUG") -> None:
     This is opt-in: the SDK never calls it for you (except when the ``MAILKUBE_LOG``
     environment variable is set). Call it from your application to see SDK debug output.
 
+    ``MAILKUBE_LOG`` is a level, not a switch: ``MAILKUBE_LOG=WARNING`` must suppress debug
+    records rather than merely turning logging on. An unrecognized value falls back to ``DEBUG``
+    instead of raising, because this runs at import time and no environment variable should be
+    able to make ``import mailkube`` fail.
+
     Args:
-        level: The log level to set on the ``mailkube`` logger.
+        level: The log level to set on the ``mailkube`` logger. A level name or a numeric level.
     """
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s"))
     logger.addHandler(handler)
-    logger.setLevel(level)
+    try:
+        logger.setLevel(level)
+    except ValueError:
+        logger.setLevel(logging.DEBUG)
+        logger.warning("Unrecognized log level %r; falling back to DEBUG.", level)
 
 
 def redact_headers(headers: Mapping[str, str]) -> dict[str, str]:

@@ -21,7 +21,7 @@ uv run ruff format --check .   # formatting
 uv run mypy src                # strict types
 uv run pytest                  # tests + 90% line+branch coverage gate
 npx --yes jscpd@4 --config .jscpd.json .   # duplication (DRY) gate
-./scripts/check-rule-index.sh  # every .rules/*.md indexed in CLAUDE.md
+./scripts/check-rule-index.sh  # every .rules/*.md indexed in AGENTS.md
 ```
 
 `uv run pre-commit run --all-files` runs the ruff + jscpd + commitlint hooks in one shot.

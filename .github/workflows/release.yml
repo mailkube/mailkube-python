@@ -30,11 +30,21 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Creates and pushes the TAG and the GitHub Release, and nothing else.
+      # `commit: false` and `changelog: false` are what keep `main` untouched:
+      # a bot commit would be rejected by the branch ruleset, and
+      # github-actions[bot] cannot be added to a ruleset bypass list.
+      # `build: false` because the publish job below builds from the tag.
       - name: Compute release (python-semantic-release)
         id: release
         uses: python-semantic-release/python-semantic-release@v10
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          commit: false
+          changelog: false
+          build: false
+          tag: true
+          push: true
 
   publish:
     needs: release
@@ -44,9 +54,13 @@ jobs:
     permissions:
       id-token: write # OIDC for PyPI Trusted Publishing — no password/token stored
     steps:
+      # fetch-depth: 0 so hatch-vcs can see the tag it is checked out at. With
+      # the default shallow fetch the build resolves no version and ships the
+      # wrong one.
       - uses: actions/checkout@v7
         with:
           ref: v${{ needs.release.outputs.version }}
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7

@@ -20,6 +20,20 @@ def test_user_agent_carries_the_real_version():
     assert client._default_headers()["User-Agent"] == f"mailkube-python/{mailkube.__version__}"
 
 
+def test_the_user_agent_version_segment_starts_with_a_digit():
+    """The contract is `mailkube-<lang>/<version>` — a `v` prefix from the git tag would violate it.
+
+    Deliberately NOT written as `== f"mailkube-python/{__version__}"`: that form is tautological
+    and would happily pass on `mailkube-python/v1.0.0`. Asserting the shape is what catches a
+    version resolved from the raw tag instead of from PEP 440 distribution metadata.
+    """
+    user_agent = mailkube.Mailkube(api_key="mk_test")._default_headers()["User-Agent"]
+    prefix, slash, version_segment = user_agent.partition("/")
+
+    assert (prefix, slash) == ("mailkube-python", "/")
+    assert version_segment[:1].isdigit(), f"stray non-numeric version prefix in {user_agent!r}"
+
+
 def test_public_symbols_are_exported():
     exported = (
         "Mailkube",

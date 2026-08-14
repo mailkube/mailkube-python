@@ -63,13 +63,16 @@ class AsyncMailkube(BaseClient):
             The raw response.
 
         Raises:
-            MailkubeConnectionError: On a transport failure or timeout.
+            MailkubeConnectionError: On any httpx-level failure — see :meth:`mailkube.Mailkube._raw`.
         """
         url, headers = self._prepare(spec)
+        self._log_request(spec.method, url, headers)
         try:
-            return await self._http.request(spec.method, url, json=spec.json, params=spec.params, headers=headers)
-        except httpx.TransportError as exc:
+            response = await self._http.request(spec.method, url, json=spec.json, params=spec.params, headers=headers)
+        except (httpx.HTTPError, httpx.InvalidURL) as exc:
             raise MailkubeConnectionError(str(exc)) from exc
+        self._log_response(spec.method, url, response.status_code, response.headers)
+        return response
 
     async def send_email(self, params: SendEmailParams) -> Email:
         """Build and POST a send request, returning the typed :class:`Email`.

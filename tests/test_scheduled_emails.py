@@ -187,7 +187,7 @@ def test_rate_limit_carries_retry_after_and_the_request_id():
     assert excinfo.value.request_id == "req_9"
 
 
-@pytest.mark.parametrize("payload", [[], "nope"])
+@pytest.mark.parametrize("payload", [[], "nope", None, 123, True])
 def test_a_non_object_success_body_is_reported_clearly(payload):
     with pytest.raises(MailkubeError, match="Expected a JSON object"):
         make_client(json_handler(200, payload)).scheduled_emails.get(EMAIL_ID)
