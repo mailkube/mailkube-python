@@ -333,6 +333,13 @@ Runnable scripts in [`examples/`](examples):
 - [`webhook_receiver_flask.py`](examples/webhook_receiver_flask.py) — verify and dispatch webhooks
   in a Flask app
 
+## Extending this SDK
+
+Before adding a resource, verb, paginated listing or webhook event, read
+[`.rules/SDK_CONTRACT.md`](.rules/SDK_CONTRACT.md) (the decisions every mailkube SDK shares) and
+[`.rules/SDK_DESIGN.md`](.rules/SDK_DESIGN.md) (how they are realized in Python). Both carry a
+step-by-step checklist, and every checklist ends with adding a runnable example.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup and the quality gates every change
