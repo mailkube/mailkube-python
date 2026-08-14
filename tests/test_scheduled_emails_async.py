@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from conftest import BASE_URL, SCHEDULED_EMAIL, capturing_handler, json_handler, make_async_client, page
-from mailkube import MailkubeConnectionError, NotFoundError
+from mailkube import MailkubeConnectionError, MailkubeError, NotFoundError
 
 EMAIL_ID = SCHEDULED_EMAIL["id"]
 BATCH_CANCEL = {"object": "scheduled_email.batch", "batch_id": "campaign-x", "canceled_count": 3}
@@ -100,6 +100,17 @@ def test_async_iter_all_walks_every_page():
         return [item.id async for item in client.scheduled_emails.iter_all()]
 
     assert _run(handler, collect) == ["id-1", "id-2"]
+
+
+def test_async_a_next_link_on_a_foreign_origin_is_refused_not_followed():
+    """The credentialed-redirect guard must hold on the async iterator too, not just the sync one."""
+    payload = page([SCHEDULED_EMAIL], "https://evil.example/mta/v1/scheduled-emails?page=2")
+
+    async def collect(client):
+        return [item.id async for item in client.scheduled_emails.iter_all()]
+
+    with pytest.raises(MailkubeError, match="not on the configured API origin"):
+        _run(json_handler(200, payload), collect)
 
 
 def test_async_error_envelope_surfaces_as_the_mapped_exception():

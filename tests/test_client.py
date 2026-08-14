@@ -130,7 +130,20 @@ def test_transport_error_wrapped():
         make_client(handler).emails.send(from_="a@x.com", to="b@y.com", subject="Hi", html="x")
 
 
-@pytest.mark.parametrize("content", [b"", b"<html>oops</html>", b'{"no":"id"}'])
+def test_a_non_transport_httpx_error_is_still_wrapped():
+    """No httpx type may escape the SDK hierarchy — DecodingError is not a TransportError."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.DecodingError("gzip")
+
+    with pytest.raises(MailkubeConnectionError):
+        make_client(handler).emails.send(from_="a@x.com", to="b@y.com", subject="Hi", html="x")
+
+
+@pytest.mark.parametrize(
+    "content",
+    [b"", b"<html>oops</html>", b'{"no":"id"}', b"null", b"123", b"[]", b'"a string"'],
+)
 def test_bad_success_body_raises(content):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, content=content)
@@ -209,3 +222,23 @@ def test_an_absolute_url_off_the_configured_origin_is_refused():
 
     with pytest.raises(MailkubeError, match="not on the configured API origin"):
         client._build_url("https://evil.example/mta/v1/emails")
+
+
+@pytest.mark.parametrize("header_name", ["X-Request-Id", "x-request-id", "X-REQUEST-ID"])
+def test_the_request_id_is_read_whatever_the_header_casing(header_name):
+    """HTTP header names are case-insensitive and clients normalize differently.
+
+    The lookup must not be a raw mapping index: a plain dict keyed by the casing the server
+    happened to send would return nothing, and the id would be silently null on every response.
+    """
+    email = Mailkube._process_response(200, b'{"id":"x"}', {header_name: "req_cased"})
+    assert email.request_id == "req_cased"
+
+
+def test_the_timeout_reaches_the_http_client_the_sdk_constructs():
+    """A stored-but-unapplied timeout is a dead public parameter — and unfixable after release."""
+    client = Mailkube(api_key="mk_test", timeout=12.5)
+    assert client._http.timeout.connect == 12.5
+    assert client._http.timeout.read == 12.5
+    assert client._http.timeout.write == 12.5
+    assert client._http.timeout.pool == 12.5

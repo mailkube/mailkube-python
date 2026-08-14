@@ -15,7 +15,7 @@ from typing import cast
 from urllib.parse import urljoin, urlsplit
 
 from ._exceptions import MailkubeError, raise_for_response
-from ._logging import get_logger
+from ._logging import get_logger, redact_headers
 from ._serialization import encode_attachments, to_iso
 from ._transport import ModelT, RequestSpec
 from ._version import __version__
@@ -143,6 +143,45 @@ class BaseClient:
             The request URL and the default headers overlaid with the spec's own.
         """
         return self._build_url(spec.path), {**self._default_headers(), **spec.headers}
+
+    @staticmethod
+    def _log_request(method: str, url: str, headers: Mapping[str, str]) -> None:
+        """Emit the outbound half of a request/response pair at DEBUG.
+
+        Deliberately logs the envelope only — method, URL and headers. The request **body** is
+        never logged at any level: it is where the recipient addresses, the subject and the message
+        content live, and a debug flag must not turn the SDK into a PII exfiltration path. The URL
+        is safe by construction: the send path is a constant and the only query string the SDK
+        builds is the scheduled-email filter set (status, batch id, due-time bounds, page).
+
+        Args:
+            method: The HTTP method.
+            url: The absolute request URL.
+            headers: The outgoing headers, redacted here before they reach a record.
+        """
+        logger.debug("request %s %s headers=%s", method, url, redact_headers(headers))
+
+    @staticmethod
+    def _log_response(method: str, url: str, status_code: int, headers: Mapping[str, str]) -> None:
+        """Emit the inbound half of a request/response pair at DEBUG.
+
+        Carries the request id so a customer's own logs and a support ticket describe the same
+        request. The response body is omitted for the same reason the request body is.
+
+        Args:
+            method: The HTTP method.
+            url: The absolute request URL.
+            status_code: The HTTP status code.
+            headers: The response headers, redacted here before they reach a record.
+        """
+        logger.debug(
+            "response %s %s status=%s request_id=%s headers=%s",
+            method,
+            url,
+            status_code,
+            _header(headers, "x-request-id"),
+            redact_headers(headers),
+        )
 
     def _default_headers(self) -> dict[str, str]:
         """Return the auth + non-browser User-Agent headers sent on every request."""

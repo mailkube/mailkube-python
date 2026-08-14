@@ -65,13 +65,18 @@ class Mailkube(BaseClient):
             The raw response.
 
         Raises:
-            MailkubeConnectionError: On a transport failure or timeout.
+            MailkubeConnectionError: On any httpx-level failure — transport, timeout, redirect
+                loop, undecodable content encoding, or a malformed URL. No third-party exception
+                type is allowed to escape the SDK's own hierarchy.
         """
         url, headers = self._prepare(spec)
+        self._log_request(spec.method, url, headers)
         try:
-            return self._http.request(spec.method, url, json=spec.json, params=spec.params, headers=headers)
-        except httpx.TransportError as exc:
+            response = self._http.request(spec.method, url, json=spec.json, params=spec.params, headers=headers)
+        except (httpx.HTTPError, httpx.InvalidURL) as exc:
             raise MailkubeConnectionError(str(exc)) from exc
+        self._log_response(spec.method, url, response.status_code, response.headers)
+        return response
 
     def send_email(self, params: SendEmailParams) -> Email:
         """Build and POST a send request, returning the typed :class:`Email`.

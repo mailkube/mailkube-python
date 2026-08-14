@@ -303,8 +303,13 @@ import mailkube
 mailkube.enable_logging(level="DEBUG")
 ```
 
-or set the `MAILKUBE_LOG` environment variable. `Authorization` and `Idempotency-Key` headers are
-redacted from log output.
+or set the `MAILKUBE_LOG` environment variable to a **level name** — `MAILKUBE_LOG=DEBUG`,
+`MAILKUBE_LOG=WARNING`. It is a level, not an on/off switch; an unrecognized value falls back to
+`DEBUG` rather than failing the import.
+
+Each request logs its method, URL and headers; each response logs its status and `request_id`.
+`Authorization` and `Idempotency-Key` headers are redacted. Message bodies are never logged at any
+level, so no recipient address, subject or content reaches a log record.
 
 ## Client lifecycle
 

@@ -54,6 +54,28 @@ def test_async_transport_error_wrapped():
         asyncio.run(run())
 
 
+def test_async_non_transport_httpx_error_is_still_wrapped():
+    """DecodingError is a RequestError, not a TransportError — it must not escape the hierarchy."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.DecodingError("gzip")
+
+    async def run() -> None:
+        async with make_async_client(handler) as client:
+            await client.emails.send(from_="a@x.com", to="b@y.com", subject="Hi", html="x")
+
+    with pytest.raises(MailkubeConnectionError):
+        asyncio.run(run())
+
+
+def test_async_timeout_reaches_the_http_client_the_sdk_constructs():
+    """Same dead-parameter guard as the sync client, on the client the SDK builds itself."""
+    client = AsyncMailkube(api_key="mk_test", timeout=12.5)
+    assert client._http.timeout.connect == 12.5
+    assert client._http.timeout.read == 12.5
+    asyncio.run(client.aclose())
+
+
 def test_async_owned_client_closed():
     client = AsyncMailkube(api_key="mk_x")
 
