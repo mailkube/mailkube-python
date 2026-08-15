@@ -1,6 +1,6 @@
 """Receive and verify Mailkube webhooks in a Flask app.
 
-    MAILKUBE_WEBHOOK_SECRET=... flask --app examples/webhook_receiver_flask run
+MAILKUBE_WEBHOOK_SECRET=... flask --app examples/webhook_receiver_flask run
 """
 
 import os
@@ -14,7 +14,7 @@ SECRET = os.environ["MAILKUBE_WEBHOOK_SECRET"]
 
 
 @app.get("/webhooks/mailkube")
-def register():
+def register() -> tuple[str | dict[str, str], int]:
     """Answer Mailkube's one-time endpoint-registration challenge.
 
     When you create (or re-point the URL of) a webhook endpoint, Mailkube probes it
@@ -29,10 +29,10 @@ def register():
 
 
 @app.post("/webhooks/mailkube")
-def receive():
+def receive() -> tuple[dict[str, str | bool], int]:
     """Verify the signature over the raw body, then dispatch on the event type."""
     try:
-        event = verify(request.get_data(), request.headers, SECRET)
+        event = verify(request.get_data(), dict(request.headers), SECRET)
     except SignatureVerificationError:
         return {"error": "invalid signature"}, 400
 

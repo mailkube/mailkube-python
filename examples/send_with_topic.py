@@ -15,7 +15,7 @@ triggers that rejection on purpose.
 import os
 import sys
 
-from mailkube import ErrorName, Mailkube, MailkubeError
+from mailkube import APIError, ErrorName, Mailkube
 
 # The verified sender this account may send from, and where to send it. Override per
 # environment; the fallbacks are placeholders and will be rejected until you set your own.
@@ -44,7 +44,7 @@ with Mailkube() as client:
             topic="no-such-topic",
         )
         raise SystemExit("expected an unknown topic to be rejected, but it was accepted")
-    except MailkubeError as exc:
+    except APIError as exc:
         if exc.error_name != ErrorName.TOPIC_NOT_FOUND:
             raise
         print("unknown topic correctly rejected:", exc.error_name)

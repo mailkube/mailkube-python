@@ -25,6 +25,18 @@ repos:
         entry: npx --yes jscpd@4 --config .jscpd.json .
         language: system
         pass_filenames: false
+      - id: jscpd-examples
+        name: jscpd (examples, higher threshold)
+        entry: npx --yes jscpd@4 --config .jscpd.examples.json examples/
+        language: system
+        pass_filenames: false
+      # The ruff hooks above already cover examples — they read pyproject.toml, which no longer
+      # excludes them. This is the compile floor CI's `examples` job runs, mirrored locally.
+      - id: examples-compile
+        name: examples compile (compileall)
+        entry: python3 -m compileall -q
+        language: system
+        files: ^examples/.*\.py$
 
   # Enforce Conventional Commits on the commit message (matches the org house style).
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook

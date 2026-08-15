@@ -10,31 +10,31 @@ Nothing here sends a message: each call is designed to be refused.
 """
 
 import os
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
-from mailkube import ErrorName, Mailkube, MailkubeError
+from mailkube import APIError, ErrorName, Mailkube
 
 # The verified sender this account may send from, and where to send it. Override per
 # environment; the fallbacks are placeholders and will be rejected until you set your own.
 SENDER = os.environ.get("MAILKUBE_FROM", "Acme <hello@yourdomain.com>")
 RECIPIENT = os.environ.get("MAILKUBE_TO", "customer@example.com")
 
-failures = 0
+failures: list[str] = []
 
 
-def expect(label: str, expected: ErrorName, call) -> None:
+def expect(label: str, expected: ErrorName, call: Callable[[], object]) -> None:
     """Run ``call`` and report whether it failed with ``expected``."""
-    global failures
     try:
         call()
-    except MailkubeError as exc:
+    except APIError as exc:
         ok = exc.error_name == expected
         print(f"{'ok  ' if ok else 'BAD '} {label}: {exc.error_name} ({exc.status_code})")
         if not ok:
-            failures += 1
+            failures.append(label)
         return
     print(f"BAD  {label}: expected {expected}, but the call succeeded")
-    failures += 1
+    failures.append(label)
 
 
 with Mailkube() as client:
@@ -62,9 +62,7 @@ with Mailkube() as client:
     expect(
         "batch_id without scheduled_at",
         ErrorName.VALIDATION_ERROR,
-        lambda: client.emails.send(
-            from_=SENDER, to=RECIPIENT, subject="Ungrouped", text="...", batch_id="b1"
-        ),
+        lambda: client.emails.send(from_=SENDER, to=RECIPIENT, subject="Ungrouped", text="...", batch_id="b1"),
     )
 
     # A sent email has left the scheduled collection, so filtering for it is a contract error
@@ -85,5 +83,5 @@ with Mailkube(api_key="mk_notarealkey_" + "0" * 64) as anonymous:
     )
 
 if failures:
-    raise SystemExit(f"{failures} case(s) did not behave as documented")
+    raise SystemExit(f"{len(failures)} case(s) did not behave as documented: {', '.join(failures)}")
 print("all error cases behaved as documented")

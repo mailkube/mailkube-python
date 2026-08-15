@@ -42,8 +42,10 @@ jobs:
       - name: Format check (ruff)
         run: uv run ruff format --check .
 
+      # No path argument: `files = ["src", "examples"]` in pyproject.toml is the single source
+      # of truth, so CI and a local `uv run mypy` cannot drift apart.
       - name: Type check (mypy)
-        run: uv run mypy src
+        run: uv run mypy
 
       - name: Tests + coverage gate (pytest, 90% line+branch)
         run: uv run pytest
@@ -108,6 +110,23 @@ jobs:
       - name: Tests against the dependency floor
         run: uv run pytest --no-cov
 
+  examples:
+    # `examples/` is runnable documentation, and customers copy it. Nothing in CI executes it —
+    # that would need live credentials — so this is the floor: every example must at least
+    # compile. ruff and mypy (in `test`) cover style, complexity and typing; this catches what
+    # neither can, a file that is not valid Python at all.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Examples compile (compileall)
+        run: |
+          n=$(ls examples/*.py | wc -l)
+          test "$n" -ge 14 || { echo "expected >=14 examples, found $n"; exit 1; }
+          python -m compileall -q examples/ || exit 1
+
   dry:
     # Language-agnostic duplication (DRY) gate — identical across every mailkube repo.
     runs-on: ubuntu-latest
@@ -118,6 +137,13 @@ jobs:
           node-version: "20"
       - name: Copy-paste detection (jscpd)
         run: npx --yes jscpd@4 --config .jscpd.json .
+      # Examples are excluded from the run above and measured here instead, at a higher
+      # minTokens. Every example repeats the same scaffolding — import, read MAILKUBE_FROM,
+      # construct the client — and deduping that into a shared helper would defeat the point of a
+      # file you can read top to bottom and paste into your own project. 100 tokens is past that
+      # boilerplate (the cliff is at 90) while still catching a genuinely copy-pasted example.
+      - name: Copy-paste detection across examples (jscpd)
+        run: npx --yes jscpd@4 --config .jscpd.examples.json examples/
 
   docs:
     # Governance gate: every .rules/*.md must be indexed in AGENTS.md.

@@ -14,7 +14,7 @@ rather than a silent replay, which is what stops a recycled key from swallowing 
 import os
 import time
 
-from mailkube import Mailkube, MailkubeError
+from mailkube import APIError, Mailkube, SendEmailParams
 
 # The verified sender this account may send from, and where to send it. Override per
 # environment; the fallbacks are placeholders and will be rejected until you set your own.
@@ -25,7 +25,9 @@ RECIPIENT = os.environ.get("MAILKUBE_TO", "customer@example.com")
 # not a random value, otherwise a retry generates a new key and sends twice.
 IDEMPOTENCY_KEY = f"order-{int(time.time())}"
 
-params = {
+# Annotated so the type checker sees the individual keyword types through `**params`;
+# a bare dict literal collapses to `dict[str, str]` and every send below fails to check.
+params: SendEmailParams = {
     "from_": SENDER,
     "to": RECIPIENT,
     "subject": "Sent at most once",
@@ -48,7 +50,8 @@ with Mailkube() as client:
 
     # Same key, different body: refused rather than replayed.
     try:
-        client.emails.send(**{**params, "subject": "A different message entirely"})
+        changed: SendEmailParams = {**params, "subject": "A different message entirely"}
+        client.emails.send(**changed)
         raise SystemExit("expected a reused key with a changed body to be rejected")
-    except MailkubeError as exc:
+    except APIError as exc:
         print("key reuse with a changed body correctly rejected:", exc.error_name)

@@ -1,10 +1,10 @@
 """Send an email with the asynchronous client, and thread a reply onto it.
 
-    MAILKUBE_API_KEY=mk_... python examples/async_send.py
+MAILKUBE_API_KEY=mk_... python examples/async_send.py
 """
 
-import os
 import asyncio
+import os
 
 from mailkube import AsyncMailkube
 

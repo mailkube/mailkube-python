@@ -1,6 +1,6 @@
 """Schedule several sends under one batch, then move or cancel them as a unit.
 
-    MAILKUBE_API_KEY=mk_... python examples/schedule_batch.py
+MAILKUBE_API_KEY=mk_... python examples/schedule_batch.py
 """
 
 import os

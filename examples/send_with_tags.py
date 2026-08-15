@@ -1,9 +1,10 @@
 """Tag a send with name/value pairs the server records on the sending-log.
 
-    MAILKUBE_API_KEY=mk_... python examples/send_with_tags.py
+MAILKUBE_API_KEY=mk_... python examples/send_with_tags.py
 """
 
 import os
+
 from mailkube import Mailkube
 
 # The verified sender this account may send from, and where to send it. Override per

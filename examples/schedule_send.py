@@ -1,6 +1,6 @@
 """Schedule a send for later instead of delivering it now.
 
-    MAILKUBE_API_KEY=mk_... python examples/schedule_send.py
+MAILKUBE_API_KEY=mk_... python examples/schedule_send.py
 """
 
 import os

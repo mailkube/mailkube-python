@@ -6,6 +6,7 @@ Run with your API key in the environment:
 """
 
 import os
+
 from mailkube import Mailkube
 
 # The verified sender this account may send from, and where to send it. Override per
