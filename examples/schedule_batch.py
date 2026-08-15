@@ -3,9 +3,15 @@
     MAILKUBE_API_KEY=mk_... python examples/schedule_batch.py
 """
 
+import os
 from datetime import UTC, datetime, timedelta
 
 from mailkube import Mailkube
+
+# The verified sender this account may send from, and where to send it. Override per
+# environment; the fallbacks are placeholders and will be rejected until you set your own.
+SENDER = os.environ.get("MAILKUBE_FROM", "Acme <hello@yourdomain.com>")
+RECIPIENT = os.environ.get("MAILKUBE_TO", "customer@example.com")
 
 BATCH_ID = "digest-2026-08"
 RECIPIENTS = ["a@example.com", "b@example.com", "c@example.com"]
@@ -14,7 +20,7 @@ with Mailkube() as client:
     due = datetime.now(UTC) + timedelta(hours=2)
     for recipient in RECIPIENTS:
         email = client.emails.send(
-            from_="Acme <hello@yourdomain.com>",
+            from_=SENDER,
             to=recipient,
             subject="Your weekly digest",
             html="<p>Here's what happened this week.</p>",
