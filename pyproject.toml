@@ -36,6 +36,10 @@ dev = [
     "pytest-cov>=5.0",
     "mypy>=1.10",
     "ruff>=0.16.2",
+    # Not a dependency of the library — `examples/webhook_receiver_flask.py` imports it, and
+    # without it installed mypy silently degrades that file to `Any` and the gate stops checking
+    # the one example most likely to be pasted into production.
+    "flask>=3.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -64,8 +68,10 @@ version-file = "src/mailkube/_vcs_version.py"
 line-length = 120
 target-version = "py312"
 src = ["src", "tests"]
-# `examples/` holds runnable illustrative scripts (excluded from the wheel), not library code.
-extend-exclude = ["examples"]
+# `examples/` is deliberately NOT excluded. Those scripts ship outside the wheel, but customers
+# copy them, so they are linted, formatted and type-checked exactly like `src/`. They stay out of
+# coverage (nothing executes them in CI) and out of the main duplication run — cross-example
+# duplication is measured separately by `.jscpd.examples.json`.
 
 [tool.ruff.lint]
 # E/F/I/UP/B: baseline. C901: complexity (KISS). D: docstrings (documentation).
@@ -80,13 +86,18 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D", "PLR2004", "ARG", "S101"]
+# An example is a script, and `raise SystemExit("what went wrong")` is how a script exits with a
+# reason. TRY003 exists to stop long messages accreting at library raise sites, where a caller has
+# to catch and re-inspect them; here the message IS the output, and defining an exception subclass
+# per exit reason would be noise in a file meant to be read top to bottom.
+"examples/*" = ["TRY003"]
 
 # ── Type checking ─────────────────────────────────────────────────────────────
 [tool.mypy]
 python_version = "3.12"
 strict = true
 ignore_missing_imports = true
-files = ["src"]
+files = ["src", "examples"]
 
 # ── Tests & coverage (90% line + branch, enforced) ────────────────────────────
 [tool.pytest.ini_options]

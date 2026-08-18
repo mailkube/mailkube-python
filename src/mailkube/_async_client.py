@@ -33,6 +33,7 @@ class AsyncMailkube(BaseClient):
         *,
         base_url: str | None = None,
         timeout: float = 30.0,
+        user_agent_suffix: str | None = None,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
         """Create the client.
@@ -41,10 +42,13 @@ class AsyncMailkube(BaseClient):
             api_key: The API key (falls back to ``MAILKUBE_API_KEY``).
             base_url: Override the API base URL (falls back to ``MAILKUBE_BASE_URL``).
             timeout: Per-request timeout in seconds (ignored when ``http_client`` is given).
+            user_agent_suffix: A ``name/version`` token identifying software that wraps this
+                SDK — a CLI, an internal service, a framework integration — appended after this
+                SDK's own token so both are visible. A value containing CR or LF is ignored.
             http_client: An optional ``httpx.AsyncClient`` to use instead of a built-in one.
                 When supplied, the caller owns its lifecycle — :meth:`aclose` will not close it.
         """
-        super().__init__(api_key, base_url=base_url, timeout=timeout)
+        super().__init__(api_key, base_url=base_url, timeout=timeout, user_agent_suffix=user_agent_suffix)
         self._owns_http = http_client is None
         self._http = http_client if http_client is not None else httpx.AsyncClient(timeout=self._timeout)
         self.emails = AsyncEmailsResource(self)

@@ -76,7 +76,7 @@ from .types.responses import (
     ScheduledEmailBatchUpdate,
     ScheduledEmailPage,
 )
-from .webhooks import parse_event, verify, verify_signature
+from .webhooks import parse_event, sign, verify, verify_signature
 
 __all__ = [
     "APIError",
@@ -124,6 +124,7 @@ __all__ = [
     "__version__",
     "enable_logging",
     "parse_event",
+    "sign",
     "verify",
     "verify_signature",
 ]

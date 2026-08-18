@@ -1,0 +1,9 @@
+{
+  "threshold": 1,
+  "minTokens": 100,
+  "reporters": ["console"],
+  "absolute": true,
+  "gitignore": true,
+  "failOnDuplication": true,
+  "ignore": ["**/vendor/**"]
+}

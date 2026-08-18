@@ -1,13 +1,16 @@
-"""Verify and parse inbound Mailkube webhooks.
+"""Verify, sign and parse inbound Mailkube webhooks.
 
 Verification is a pure, stdlib-only HMAC check over the raw request bytes — no HTTP, no
 client needed — so you call these functions directly inside your webhook handler.
 
-Signature scheme (matches ``api/webhook/services/sender.py``): the signed input is
+Signature scheme (see ``.rules/SDK_CONTRACT.md``): the signed input is
 ``f"{X-Webhook-Id}.{X-Webhook-Ts}.".encode() + raw_body``, HMAC-SHA256 keyed by the
 endpoint's signing secret (used verbatim as UTF-8 bytes), hex-encoded, and sent as
 ``X-Webhook-Sig: sha256=<hex>``. ``X-Webhook-Ts`` is an ISO-8601 timestamp checked for
 freshness; ``X-Webhook-Id`` is stable across retries (use it to deduplicate).
+
+:func:`sign` is the mirror of :func:`verify_signature`, for anything that needs to *produce* a
+delivery — a test fixture, a local replay tool, a fake endpoint in your own suite.
 """
 
 from __future__ import annotations
@@ -91,12 +94,35 @@ def verify_signature(
 
     _check_freshness(timestamp, tolerance_seconds)
 
-    signing_input = f"{webhook_id}.{timestamp}.".encode() + raw
-    expected = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).hexdigest()
+    expected = _signature_hex(webhook_id, timestamp, raw, secret)
     provided = signature[len(_SIGNATURE_PREFIX) :] if signature.startswith(_SIGNATURE_PREFIX) else signature
     if not hmac.compare_digest(expected, provided):
         raise SignatureVerificationError("Webhook signature mismatch.")  # noqa: TRY003
     return raw
+
+
+def sign(webhook_id: str, timestamp: str, payload: bytes | str, secret: str) -> str:
+    """Produce the ``X-Webhook-Sig`` value for a payload, the mirror of :func:`verify_signature`.
+
+    This exists so anything that produces a delivery — a test fixture, a local replay tool, a
+    fake endpoint in your own suite — computes the signature the way this module verifies it.
+    A reimplementation from the docstring above agrees with its author's reading of the prose
+    rather than with this SDK, and the two drift silently. Production code verifies; it does
+    not sign.
+
+    Freshness is not this function's concern: it signs the timestamp it is given, so replaying
+    an old capture reproduces the original signature exactly.
+
+    Args:
+        webhook_id: The ``X-Webhook-Id`` value.
+        timestamp: The ``X-Webhook-Ts`` value, ISO-8601.
+        payload: The raw body that will be sent.
+        secret: The endpoint's signing secret.
+
+    Returns:
+        The header value, including the ``sha256=`` prefix.
+    """
+    return _SIGNATURE_PREFIX + _signature_hex(webhook_id, timestamp, _as_bytes(payload), secret)
 
 
 def parse_event(payload: bytes | str) -> WebhookEvent:
@@ -139,3 +165,12 @@ def verify(
     """
     raw = verify_signature(payload, headers, secret, tolerance_seconds=tolerance_seconds)
     return parse_event(raw)
+
+
+def _signature_hex(webhook_id: str, timestamp: str, raw: bytes, secret: str) -> str:
+    """Return the hex HMAC-SHA256 over the contract's signed input.
+
+    One implementation, so signing and verifying cannot disagree.
+    """
+    signing_input = f"{webhook_id}.{timestamp}.".encode() + raw
+    return hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).hexdigest()
