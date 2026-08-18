@@ -1,7 +1,8 @@
 """Webhook verification + parsing.
 
-Signatures are recomputed independently here (mirroring api/webhook/services/sender.py),
-never imported — the receiver and sender live on opposite sides of a trust boundary.
+Signatures are recomputed independently here (mirroring the scheme in .rules/SDK_CONTRACT.md),
+never imported — the receiver and sender live on opposite sides of a trust boundary. That
+independence is what makes ``_sign`` a usable oracle for the shipped ``sign`` below.
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ from mailkube import (
     SignatureVerificationError,
     UnknownEvent,
     parse_event,
+    sign,
     verify,
     verify_signature,
 )
@@ -123,6 +125,37 @@ def test_missing_header_rejected(missing):
     del headers[missing]
     with pytest.raises(SignatureVerificationError):
         verify_signature(body, headers, SECRET)
+
+
+# The three below tie the shipped ``sign`` to the independent ``_sign`` oracle, from both
+# directions: the value it produces, and the verifier's acceptance of what it produced.
+
+
+def test_sign_matches_an_independently_computed_signature():
+    body = b"{}"
+    stamp = "2026-01-01T00:00:00+00:00"
+    expected = _sign(body, timestamp=stamp)["X-Webhook-Sig"]
+
+    assert sign(WEBHOOK_ID, stamp, body, SECRET) == expected
+
+
+def test_the_verifier_accepts_what_sign_produces():
+    body = b'{"type":"email.sent"}'
+    stamp = _now_iso()
+    headers = {
+        "X-Webhook-Id": WEBHOOK_ID,
+        "X-Webhook-Ts": stamp,
+        "X-Webhook-Sig": sign(WEBHOOK_ID, stamp, body, SECRET),
+    }
+
+    assert verify_signature(body, headers, SECRET) == body
+
+
+def test_sign_accepts_a_str_payload_as_utf8():
+    body = '{"subject":"héllo"}'.encode()
+    stamp = "2026-01-01T00:00:00+00:00"
+
+    assert sign(WEBHOOK_ID, stamp, body.decode(), SECRET) == sign(WEBHOOK_ID, stamp, body, SECRET)
 
 
 # --- Parsing + forward compatibility -----------------------------------------------

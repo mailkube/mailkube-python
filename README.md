@@ -29,8 +29,15 @@ client = Mailkube(
     api_key="mk_...",  # or set MAILKUBE_API_KEY
     base_url="https://api.mailkube.com/mta/v1/",  # or set MAILKUBE_BASE_URL; this is the default
     timeout=30.0,  # per-request timeout in seconds
+    user_agent_suffix="my-cli/1.0.0",  # optional; identifies software wrapping this SDK
 )
 ```
+
+`user_agent_suffix` is for tools built *on* the SDK — a CLI, an internal service, a framework
+integration. It is appended after this SDK's own token, which always leads:
+`mailkube-python/1.5.0 my-cli/1.0.0`. Surrounding whitespace is trimmed; a value containing CR or
+LF is ignored outright rather than cleaned up, because a header value that could split the request
+is not one this package will send.
 
 `AsyncMailkube` takes the same arguments. Both also accept `http_client=` — your own
 `httpx.Client` / `httpx.AsyncClient` — if you need custom transport, proxies, or mTLS; the SDK
@@ -268,6 +275,28 @@ else:
     print(event.type)
 ```
 
+### Signing, for your tests
+
+`sign` is the mirror of verification: give it the id, the timestamp, the raw body and the secret,
+and it returns the `X-Webhook-Sig` value. Use it to build a delivery your handler will accept
+without waiting on a real one. Reimplementing the HMAC from the description above is the
+alternative, and it makes your fixtures agree with your reading of the docs rather than with this
+SDK.
+
+```python
+from mailkube import sign
+
+timestamp = datetime.now(UTC).isoformat()
+headers = {
+    "X-Webhook-Id": "wh_1",
+    "X-Webhook-Ts": timestamp,
+    "X-Webhook-Sig": sign("wh_1", timestamp, raw_body, signing_secret),
+}
+```
+
+It signs the timestamp you hand it and does not check freshness, so replaying an old capture
+reproduces its original signature exactly. Production code verifies; it does not sign.
+
 An unrecognized event `type` is returned as `UnknownEvent` instead of raising, so a new server event
 type never forces an SDK upgrade on receivers.
 
@@ -332,6 +361,8 @@ Runnable scripts in [`examples/`](examples):
   as a unit
 - [`webhook_receiver_flask.py`](examples/webhook_receiver_flask.py) — verify and dispatch webhooks
   in a Flask app
+- [`sign_webhook.py`](examples/sign_webhook.py) — sign a payload to build a fixture your own tests
+  can replay
 
 ## Extending this SDK
 

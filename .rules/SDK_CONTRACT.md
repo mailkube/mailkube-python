@@ -24,7 +24,7 @@ Identical in every SDK. A caller who learns one SDK knows them all.
 | Timeout | 30 seconds, configured per client, not per call |
 | Retries | **None.** See below |
 | Idempotency | an `idempotency_key` parameter lifts out of the body into an `Idempotency-Key` header; the response reports whether the request was replayed |
-| User-Agent | `mailkube-<lang>/<version>` |
+| User-Agent | `mailkube-<lang>/<version>`, optionally followed by a caller-supplied suffix |
 | Request id | read `X-Request-Id` off every response and attach it to errors |
 
 **The version has exactly one source of truth, and the User-Agent reads that source.** What counts
@@ -37,6 +37,19 @@ User-Agent then reports a version that was never released.
 Where the metadata route can legitimately return nothing — a package running from a build tree
 rather than an installed artifact, which is the normal case in tests and IDEs — fall back to a
 documented placeholder such as `0.0.0` rather than failing or emitting an empty version.
+
+**Every client takes a User-Agent suffix**, so software that wraps the SDK can be attributed. A
+CLI, an internal service and a framework integration all send requests the server sees as coming
+from the SDK; without a suffix, none of them is distinguishable from direct use.
+
+- The contract token stays **leading and unchanged**. The suffix is appended after a single space:
+  `mailkube-go/1.1.0 mailkube-cli/1.0.0`.
+- Ask for the conventional `name/version` form, and trim surrounding whitespace.
+- **A value containing CR or LF is ignored, not sanitized.** A header value that could be split is
+  not a value the SDK should send at all, and silently repairing it hides the caller's bug.
+
+A framework integration built on an SDK **must** set it to its own `name/version`; see
+`INTEGRATION_CONTRACT.md`.
 
 **There are no built-in retries.** Surface what the caller needs to decide for themselves: the
 retry-after value on a rate-limit error, and a server-error class documented as safe to retry with
@@ -200,6 +213,12 @@ timestamp, another `.`, then the **raw request body**, hex-encoded, sent as
 freshness window. Verification uses only the language's standard library and needs no client
 instance.
 
+**Ship the signing half too.** A public `sign` alongside the verifier, taking the id, the timestamp,
+the raw body and the secret and returning the header value, is what lets a consumer build a valid
+request in their own tests. Without it every consumer reimplements the HMAC from prose, and their
+fixtures agree with their reading of the docs rather than with this SDK. Verification is then
+tested against it, so the two halves cannot drift.
+
 Inbound event models follow the response-model rules with two deliberate inversions, both so a
 released client never raises on a payload it has not seen:
 
@@ -218,7 +237,12 @@ turns a new server-side value into a parse error on an already-released client.
 ## Logging
 
 Silent by default. Provide an opt-in enable function and honour a `MAILKUBE_LOG` environment
-variable. **Redact the `authorization` and `idempotency-key` headers** wherever headers are logged.
+variable; an explicit logger wins over the variable. **Redact the `authorization` and
+`idempotency-key` headers** wherever headers are logged, replacing the value with `***`.
+
+**The sensitive-header list lives in exactly one place**, and every header-logging path reads it.
+A second copy is how one path keeps redacting while the other starts printing the API key, and the
+test that covers the first path passes throughout.
 
 ## Testability
 
@@ -239,6 +263,36 @@ request and returns a canned response.
    every other client flavour.
 6. A README section and a runnable script in `examples/`.
 7. Run every gate in `.rules/SOLID_DRY_KISS.md` locally before pushing.
+
+## Examples
+
+`examples/` is runnable documentation: one file per task, no shared helper module, no
+cross-imports between scripts. A reader copies one file and it works, which is worth the
+repetition that a factored-out helper would save.
+
+**One name per task, the same name in every SDK**, cased the way the language cases files
+(`send_with_tags.py`, `send-with-tags.mjs`, `SendWithTags.java`). Someone who has read the Go SDK
+should be able to guess the Python filename. The set every SDK carries:
+
+| File | Shows |
+|---|---|
+| `simple_send` | the smallest useful program |
+| `schedule_send` | `scheduled_at` plus a batch label, and the two response shapes |
+| `list_scheduled_emails` | one page for the metadata, then the lazy walk for the rows |
+| `send_with_tags` | tags, and the warning that they are not encrypted |
+| `webhook_receiver_*` | verify, then parse, then acknowledge fast |
+
+A webhook receiver is suffixed with what it runs on (`_http`, `_rack`, `_express`) because the
+framework is the interesting part of that file. Prefer the language's own server over a framework
+dependency: a scaffolded SDK has none, and an example that needs `pip install` before it runs is
+not documentation a reader trusts.
+
+**Examples stay out of lint, coverage and duplication gates** and are therefore the easiest place
+in the repo for an API change to rot unnoticed. Every language must gate them some other way: Go
+compiles each one explicitly (the `//go:build ignore` tag keeps them out of `go build ./...`), and
+node type-checks them against the **built** package through `checkJs`, which is what catches a
+renamed export in a `.mjs` file. A language with no such gate keeps its examples deliberately
+small.
 
 ## Checklist for a new webhook event
 

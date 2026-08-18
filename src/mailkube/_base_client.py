@@ -86,6 +86,7 @@ class BaseClient:
         *,
         base_url: str | None = None,
         timeout: float = 30.0,
+        user_agent_suffix: str | None = None,
     ) -> None:
         """Resolve configuration.
 
@@ -94,6 +95,8 @@ class BaseClient:
             base_url: The API base URL. Falls back to ``MAILKUBE_BASE_URL``, then the
                 built-in default. Always resolves to a value.
             timeout: Per-request timeout in seconds.
+            user_agent_suffix: A ``name/version`` token identifying software that wraps this
+                SDK, appended after this SDK's own token.
 
         Raises:
             MailkubeError: If no API key is provided or found in the environment.
@@ -106,6 +109,10 @@ class BaseClient:
         self._api_key = resolved_key
         self._base_url = base_url or os.environ.get("MAILKUBE_BASE_URL") or DEFAULT_BASE_URL
         self._timeout = timeout
+        suffix = (user_agent_suffix or "").strip()
+        # Dropped rather than sanitized: a header value that could split the request is not one
+        # this package will send, and silently repairing it hides the caller's bug.
+        self._user_agent_suffix = "" if "\r" in suffix or "\n" in suffix else suffix
 
     def _build_url(self, path: str) -> str:
         """Join a relative path onto the (trailing-slash) base URL.
@@ -187,9 +194,18 @@ class BaseClient:
         """Return the auth + non-browser User-Agent headers sent on every request."""
         return {
             "Authorization": f"Bearer {self._api_key}",
-            "User-Agent": f"mailkube-python/{__version__}",
+            "User-Agent": self._user_agent(),
             "Content-Type": "application/json",
         }
+
+    def _user_agent(self) -> str:
+        """Return this SDK's token, plus any suffix a wrapping tool supplied.
+
+        The SDK token always leads, so attribution of the SDK itself never depends on what the
+        wrapper chose to call itself.
+        """
+        agent = f"mailkube-python/{__version__}"
+        return f"{agent} {self._user_agent_suffix}" if self._user_agent_suffix else agent
 
     @staticmethod
     def _build_send_body(params: SendEmailParams) -> RequestSpec:

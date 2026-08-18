@@ -5,6 +5,8 @@ from __future__ import annotations
 import importlib.metadata
 import pathlib
 
+import pytest
+
 import mailkube
 
 
@@ -34,12 +36,42 @@ def test_the_user_agent_version_segment_starts_with_a_digit():
     assert version_segment[:1].isdigit(), f"stray non-numeric version prefix in {user_agent!r}"
 
 
+def test_user_agent_suffix_follows_the_sdk_token():
+    """A wrapping tool gets attribution without hiding which SDK made the call."""
+    client = mailkube.Mailkube(api_key="mk_test", user_agent_suffix="my-cli/1.0.0")
+    agent = client._default_headers()["User-Agent"]
+
+    assert agent == f"mailkube-python/{mailkube.__version__} my-cli/1.0.0"
+
+
+def test_the_async_client_carries_the_user_agent_suffix_too():
+    """The option is on both flavours, or an async caller is silently unattributed."""
+    client = mailkube.AsyncMailkube(api_key="mk_test", user_agent_suffix="my-cli/1.0.0")
+
+    assert client._default_headers()["User-Agent"] == f"mailkube-python/{mailkube.__version__} my-cli/1.0.0"
+
+
+@pytest.mark.parametrize("suffix", ["", "   ", "cli/1.0\ninjected: yes", "cli/1.0\rinjected: yes"])
+def test_an_unusable_user_agent_suffix_leaves_the_header_untouched(suffix: str):
+    """Blank is a no-op; CR/LF is dropped rather than cleaned, so nothing can split the header."""
+    client = mailkube.Mailkube(api_key="mk_test", user_agent_suffix=suffix)
+
+    assert client._default_headers()["User-Agent"] == f"mailkube-python/{mailkube.__version__}"
+
+
+def test_a_surrounding_space_in_the_user_agent_suffix_is_trimmed():
+    client = mailkube.Mailkube(api_key="mk_test", user_agent_suffix="  my-cli/1.0.0  ")
+
+    assert client._default_headers()["User-Agent"].endswith(" my-cli/1.0.0")
+
+
 def test_public_symbols_are_exported():
     exported = (
         "Mailkube",
         "AsyncMailkube",
         "verify",
         "verify_signature",
+        "sign",
         "parse_event",
         "Email",
         "MailkubeError",
