@@ -20,6 +20,7 @@ from mailkube import (
     EmailClickedEvent,
     EmailDeliveredEvent,
     EmailFailedEvent,
+    EmailOpenedEvent,
     EmailScheduledEvent,
     EmailSentEvent,
     SignatureVerificationError,
@@ -310,6 +311,35 @@ def test_parse_clicked_camelcase_aliases():
     assert event.data.click.ip_address == "1.2.3.4"
     assert event.data.click.user_agent == "UA"
     assert event.data.click.link == "https://x/y"
+
+
+def test_elected_country_parses():
+    payload = {**_msg_ctx(), "open": {"timestamp": "t", "ipAddress": "1.2.3.4", "country": "FR"}}
+    event = parse_event(_event("email.opened", payload))
+    assert isinstance(event, EmailOpenedEvent)
+    assert (event.data.open.ip_address, event.data.open.country) == ("1.2.3.4", "FR")
+    # Elected separately, so it stays absent even though the address was recorded.
+    assert event.data.open.user_agent is None
+
+
+def test_engagement_parses_without_ip_or_user_agent():
+    """A sender that elected no connection data yields a payload with the keys absent.
+
+    Asserting the keys are *absent* from the payload rather than empty is what makes this
+    meaningful: it pins the boundary between "the sender did not record this" and "the sender
+    recorded a blank", which is the distinction the whole election rests on.
+    """
+    opened = parse_event(_event("email.opened", {**_msg_ctx(), "open": {"timestamp": "t"}}))
+    assert isinstance(opened, EmailOpenedEvent)
+    assert opened.data.open.ip_address is None
+    assert opened.data.open.user_agent is None
+    assert opened.data.open.country is None
+    assert opened.data.open.timestamp == "t"
+
+    clicked = parse_event(_event("email.clicked", {**_msg_ctx(), "click": {"timestamp": "t", "link": "https://x/y"}}))
+    assert isinstance(clicked, EmailClickedEvent)
+    assert clicked.data.click.ip_address is None
+    assert clicked.data.click.link == "https://x/y"
 
 
 def test_unknown_event_type_falls_back():

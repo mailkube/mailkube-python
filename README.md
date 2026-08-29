@@ -322,6 +322,12 @@ Every `email.*` event shares a message-context block (`email_id`, `created_at`, 
 `subject`, `domain`, `tags`). `tags` echoes the tags attached at send time and is `[]` when there
 were none. The four transaction-derived fields (`from`, `to`, `subject`, `domain`) can be `null`.
 
+The `open` and `click` blocks are different: `ip_address`, `country` and `user_agent` are recorded
+only where the sending domain has elected them, and both settings are off by default. The server
+omits the key rather than sending an empty value, so the attribute is `None` whenever it was not
+recorded. `country` can be `None` even where the address was recorded, because it is resolved at the
+edge and is not available on every path.
+
 ## Logging
 
 Silent by default. Turn on request/response logging with:
