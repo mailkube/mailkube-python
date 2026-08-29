@@ -62,15 +62,15 @@ class FailureContext(DeliveryContext):
 class EngagementContext(_Model):
     """An open interaction (``email.opened``); nested keys are camelCase on the wire.
 
-    ``ip_address`` and ``user_agent`` are **deprecated and default to ``None``**. The platform no
-    longer records the recipient's address or client, so a current server sends neither key. They
-    are kept as optional fields rather than removed, so that code written against an earlier
-    version keeps working and an event replayed from an archive still parses. Declaring them
-    required was also a contract defect in its own right: a released client must never raise on a
-    payload it has not seen.
+    ``ip_address``, ``country`` and ``user_agent`` are **elected by the sending domain** and are
+    ``None`` whenever it has not elected them, which is the default. The server omits the key
+    entirely rather than sending an empty value, so ``None`` here means "the sender did not record
+    this" and never "the sender recorded a blank". ``country`` can be ``None`` even where the
+    address was recorded, because it is resolved at the edge and is not always available.
     """
 
     ip_address: str | None = Field(default=None, alias="ipAddress")
+    country: str | None = None
     user_agent: str | None = Field(default=None, alias="userAgent")
     timestamp: str
 
