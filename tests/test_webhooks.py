@@ -20,6 +20,7 @@ from mailkube import (
     EmailClickedEvent,
     EmailDeliveredEvent,
     EmailFailedEvent,
+    EmailOpenedEvent,
     EmailScheduledEvent,
     EmailSentEvent,
     SignatureVerificationError,
@@ -310,6 +311,24 @@ def test_parse_clicked_camelcase_aliases():
     assert event.data.click.ip_address == "1.2.3.4"
     assert event.data.click.user_agent == "UA"
     assert event.data.click.link == "https://x/y"
+
+
+def test_engagement_parses_without_ip_or_user_agent():
+    """A current server omits both keys, and an already-released client must not raise.
+
+    Asserting the keys are *absent* from the payload rather than empty is what makes this
+    meaningful: a required field would raise here, which is how the SDK stood before.
+    """
+    opened = parse_event(_event("email.opened", {**_msg_ctx(), "open": {"timestamp": "t"}}))
+    assert isinstance(opened, EmailOpenedEvent)
+    assert opened.data.open.ip_address is None
+    assert opened.data.open.user_agent is None
+    assert opened.data.open.timestamp == "t"
+
+    clicked = parse_event(_event("email.clicked", {**_msg_ctx(), "click": {"timestamp": "t", "link": "https://x/y"}}))
+    assert isinstance(clicked, EmailClickedEvent)
+    assert clicked.data.click.ip_address is None
+    assert clicked.data.click.link == "https://x/y"
 
 
 def test_unknown_event_type_falls_back():

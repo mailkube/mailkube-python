@@ -60,10 +60,18 @@ class FailureContext(DeliveryContext):
 
 
 class EngagementContext(_Model):
-    """An open interaction (``email.opened``); nested keys are camelCase on the wire."""
+    """An open interaction (``email.opened``); nested keys are camelCase on the wire.
 
-    ip_address: str = Field(alias="ipAddress")
-    user_agent: str = Field(alias="userAgent")
+    ``ip_address`` and ``user_agent`` are **deprecated and default to ``None``**. The platform no
+    longer records the recipient's address or client, so a current server sends neither key. They
+    are kept as optional fields rather than removed, so that code written against an earlier
+    version keeps working and an event replayed from an archive still parses. Declaring them
+    required was also a contract defect in its own right: a released client must never raise on a
+    payload it has not seen.
+    """
+
+    ip_address: str | None = Field(default=None, alias="ipAddress")
+    user_agent: str | None = Field(default=None, alias="userAgent")
     timestamp: str
 
 
