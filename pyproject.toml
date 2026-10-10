@@ -26,9 +26,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/mailkube/mailkube"
-Repository = "https://github.com/mailkube/mailkube"
-Issues = "https://github.com/mailkube/mailkube/issues"
+Homepage = "https://github.com/mailkube/mailkube-python"
+Repository = "https://github.com/mailkube/mailkube-python"
+Issues = "https://github.com/mailkube/mailkube-python/issues"
 
 [dependency-groups]
 dev = [
