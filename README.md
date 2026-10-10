@@ -10,7 +10,7 @@
 The official Python SDK for [Mailkube](https://mailkube.com) — send transactional email and verify
 inbound webhooks. Fully typed, sync **and** async, Python 3.12+.
 
-Full product and API documentation: [mailkube.com/docs](https://mailkube.com/docs).
+Full product and API documentation: [docs.mailkube.com/sdks/python](https://docs.mailkube.com/sdks/python).
 
 ## Install
 
