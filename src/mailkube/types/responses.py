@@ -197,3 +197,104 @@ class ScheduledEmailBatchUpdate(BaseModel):
     batch_id: str = ""
     rescheduled_count: int = 0
     scheduled_at: str | None = None
+
+
+class APIKeyDomain(BaseModel):
+    """The sending domain an API key belongs to.
+
+    Attributes:
+        name: The domain name, e.g. ``example.com``.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    name: str = ""
+
+
+class APIKeyOrganization(BaseModel):
+    """The organization owning an API key's domain.
+
+    Attributes:
+        name: The organization's display name.
+        alias: The organization's short alias.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    name: str = ""
+    alias: str = ""
+
+
+class APIKeyQuota(BaseModel):
+    """One send quota of the plan: its limit and what the current period has used.
+
+    Attributes:
+        name: Which quota, e.g. ``emails_per_day`` or ``emails_per_month``. A plain string,
+            never a closed set.
+        limit: The plan's limit for the period, in recipients.
+        used: Recipients sent to so far in the period.
+        remaining: Recipients left in the period.
+        period: The UTC period the figures count: a day (``2026-10-19``) or a month
+            (``2026-10``).
+    """
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    name: str = ""
+    limit: int = 0
+    used: int = 0
+    remaining: int = 0
+    period: str = ""
+
+
+class APIKeyPlan(BaseModel):
+    """The organization's plan, its status and its send quotas.
+
+    Attributes:
+        code: The plan's UUID.
+        name: The plan's name.
+        status: The subscription status, e.g. ``active``. A plain string, never a closed set.
+        quotas: The send quotas the plan carries. A plan without a daily limit lists the
+            monthly quota only: an absent quota is a missing limit, never a limit of zero.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    code: str = ""
+    name: str = ""
+    status: str = ""
+    quotas: list[APIKeyQuota] = Field(default_factory=list)
+
+
+class APIKey(BaseModel):
+    """The API key the client authenticates with, as it describes itself.
+
+    Plan and quota figures can be up to 30 seconds old.
+
+    Attributes:
+        object: The resource discriminator, always ``"api_key"``.
+        key_id: The key's public identifier.
+        name: The key's name.
+        description: The key's description, or ``None``.
+        created_at: When the key was created.
+        last_auth_at: The key's last successful authentication, this call included.
+        allowed_source_ips: The networks the key may be used from, in CIDR notation. Empty
+            means any address.
+        domain: The sending domain the key belongs to.
+        organization: The organization owning the domain.
+        plan: The organization's plan, or ``None`` when it has no subscription. The API
+            sends ``null`` then, and it is never read as an empty plan.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    object: str = "api_key"
+    key_id: str
+    name: str = ""
+    description: str | None = None
+    created_at: str = ""
+    last_auth_at: str | None = None
+    allowed_source_ips: list[str] = Field(default_factory=list)
+    domain: APIKeyDomain = Field(default_factory=APIKeyDomain)
+    organization: APIKeyOrganization = Field(default_factory=APIKeyOrganization)
+    plan: APIKeyPlan | None = None

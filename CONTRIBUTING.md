@@ -12,8 +12,8 @@ Please also read our [Code of Conduct](CODE_OF_CONDUCT.md).
 Requires [uv](https://docs.astral.sh/uv/) (and Node.js for the `jscpd` duplication check).
 
 ```bash
-git clone https://github.com/mailkube/mailkube
-cd mailkube
+git clone https://github.com/mailkube/mailkube-python
+cd mailkube-python
 
 uv sync                                              # create the env + install everything
 uv run pre-commit install                            # ruff + format + jscpd hooks

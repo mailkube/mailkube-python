@@ -14,6 +14,8 @@ from collections.abc import Mapping
 from typing import cast
 from urllib.parse import urljoin, urlsplit
 
+from pydantic import ValidationError
+
 from ._exceptions import MailkubeError, raise_for_response
 from ._logging import get_logger, redact_headers
 from ._serialization import encode_attachments, to_iso
@@ -315,7 +317,10 @@ class BaseClient:
             The parsed model.
 
         Raises:
-            MailkubeError: On a 2xx response whose body is not a JSON object.
+            MailkubeError: On a 2xx response whose body is not a JSON object, or is an object
+                the model cannot be built from (a required field missing or of the wrong type).
+                A 2xx body of the wrong shape is an SDK-level failure, not an API error, so it
+                never surfaces as pydantic's own ``ValidationError``.
             APIError: On any non-2xx response (subclass chosen by status).
         """
         body = cls._ok_body(status_code, raw_bytes, headers)
@@ -323,4 +328,10 @@ class BaseClient:
             raise MailkubeError(  # noqa: TRY003 — surfaces a malformed success body clearly
                 f"Expected a JSON object from a {status_code} response."
             )
-        return model.model_validate(body)
+        try:
+            return model.model_validate(body)
+        except ValidationError as exc:
+            fields = ", ".join(sorted({".".join(str(part) for part in error["loc"]) for error in exc.errors()}))
+            raise MailkubeError(  # noqa: TRY003 — names the fields that did not fit the model
+                f"Unexpected {model.__name__} shape in a {status_code} response: {fields}."
+            ) from exc

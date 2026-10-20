@@ -9,6 +9,7 @@ import httpx
 from ._base_client import BaseClient
 from ._exceptions import MailkubeConnectionError
 from ._transport import ModelT, RequestSpec
+from .resources.credential import CredentialResource
 from .resources.emails import EmailsResource
 from .resources.scheduled_emails import ScheduledEmailsResource
 from .types.params import SendEmailParams
@@ -54,6 +55,7 @@ class Mailkube(BaseClient):
         self._http = http_client if http_client is not None else httpx.Client(timeout=self._timeout)
         self.emails = EmailsResource(self)
         self.scheduled_emails = ScheduledEmailsResource(self)
+        self.credential = CredentialResource(self)
 
     def _raw(self, spec: RequestSpec) -> httpx.Response:
         """Perform one HTTP round trip.

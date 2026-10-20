@@ -76,3 +76,19 @@ class AsyncScheduledTransport(Protocol):
     async def request(self, spec: RequestSpec, model: type[ModelT]) -> ModelT:
         """Perform the request described by ``spec`` and parse the body into ``model``."""
         ...
+
+
+class CredentialTransport(Protocol):
+    """A synchronous transport capable of describing the client's own credential."""
+
+    def request(self, spec: RequestSpec, model: type[ModelT]) -> ModelT:
+        """Perform the request described by ``spec`` and parse the body into ``model``."""
+        ...
+
+
+class AsyncCredentialTransport(Protocol):
+    """An asynchronous transport capable of describing the client's own credential."""
+
+    async def request(self, spec: RequestSpec, model: type[ModelT]) -> ModelT:
+        """Perform the request described by ``spec`` and parse the body into ``model``."""
+        ...

@@ -142,6 +142,11 @@ underlying SDK offers an async client, and it must not start an event loop to re
   (`reschedule`) even when the domain verb reads better in isolation.
 - **Sub-resources mirror sub-paths.** `scheduled-emails/batches/{id}` becomes a nested
   `scheduled_emails.batches.update(id, ...)`, not an `update_batch` suffix.
+- **One exception: the client's own credential.** The key describing itself (`GET /api-keys/me`)
+  is `credential.info()`, not `api_keys.get()`. The namespace is named after the dashboard's
+  *Credentials* section, where a customer finds the key, and the verb says the call describes the
+  credential this client holds: `get` would read as fetching some other key by id. `credential`
+  holds no setter: a client takes its key at construction, and a second key is a second client.
 
 ## Response models
 
@@ -280,6 +285,7 @@ should be able to guess the Python filename. The set every SDK carries:
 | `schedule_send` | `scheduled_at` plus a batch label, and the two response shapes |
 | `list_scheduled_emails` | one page for the metadata, then the lazy walk for the rows |
 | `send_with_tags` | tags, and the warning that they are not encrypted |
+| `credential_info` | the calling key's domain, organization, plan and quota usage, never the key itself |
 | `webhook_receiver_*` | verify, then parse, then acknowledge fast |
 
 A webhook receiver is suffixed with what it runs on (`_http`, `_rack`, `_express`) because the
@@ -287,12 +293,19 @@ framework is the interesting part of that file. Prefer the language's own server
 dependency: a scaffolded SDK has none, and an example that needs `pip install` before it runs is
 not documentation a reader trusts.
 
-**Examples stay out of lint, coverage and duplication gates** and are therefore the easiest place
-in the repo for an API change to rot unnoticed. Every language must gate them some other way: Go
-compiles each one explicitly (the `//go:build ignore` tag keeps them out of `go build ./...`), and
-node type-checks them against the **built** package through `checkJs`, which is what catches a
-renamed export in a `.mjs` file. A language with no such gate keeps its examples deliberately
-small.
+**Examples are linted like the library, measured for duplication on their own, and left out of
+coverage.** Customers copy them, so the language's linter holds them to the library's rules.
+Duplication is a separate pass over `examples/` at `minTokens: 100` instead of 50, because every
+example repeats the same opening and a shared helper would make each file unreadable on its own;
+100 clears that scaffolding and still fails on a copy-pasted example. Coverage excludes them,
+because nothing in CI runs them: they need live credentials.
+
+**That makes them the easiest place for an API change to rot unnoticed, so every language also
+checks them against the library.** Go builds each one explicitly (the `//go:build ignore` tag keeps
+them out of `go build ./...`), java compiles them against the built jar, python type-checks them
+with mypy and php with phpstan. Node and Ruby only parse them (`node --check`, `ruby -c`), so a
+renamed export or method in one of their examples is caught by nothing. A language whose examples
+are not type-checked keeps them deliberately small.
 
 ## Checklist for a new webhook event
 

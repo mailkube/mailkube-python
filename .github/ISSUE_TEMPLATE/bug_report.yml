@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Thanks for taking the time to file a bug! For **security vulnerabilities**, do not use
-        this form — follow our [Security Policy](https://github.com/mailkube/mailkube/security/policy).
+        this form — follow our [Security Policy](https://github.com/mailkube/mailkube-python/security/policy).
   - type: textarea
     id: what-happened
     attributes:
