@@ -86,6 +86,11 @@ def test_public_symbols_are_exported():
         "CanceledScheduledEmail",
         "Pagination",
         "PageSteps",
+        "APIKey",
+        "APIKeyDomain",
+        "APIKeyOrganization",
+        "APIKeyPlan",
+        "APIKeyQuota",
     )
     for name in exported:
         assert hasattr(mailkube, name)

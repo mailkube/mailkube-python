@@ -34,7 +34,8 @@ duplication gate (`jscpd`, over 1% fails) exists to keep it true.
 ## Python idioms that realize the contract
 
 - **The narrow transport interfaces are `Protocol`s**, in `_transport.py`, one sync/async pair per
-  capability (`SendTransport`/`AsyncSendTransport`, `ScheduledTransport`/`AsyncScheduledTransport`).
+  capability (`SendTransport`/`AsyncSendTransport`, `ScheduledTransport`/`AsyncScheduledTransport`,
+  `CredentialTransport`/`AsyncCredentialTransport`).
   Structural typing, not ABCs. A new capability adds a pair; it never widens an existing one.
 - **The resource base is a PEP 695 generic**, `class Resource[TransportT]`, parameterized by the
   narrow protocol each resource needs: `Resource[SendTransport]`, `Resource[ScheduledTransport]`.

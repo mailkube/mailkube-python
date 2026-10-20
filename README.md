@@ -110,6 +110,8 @@ content.
 Every failure raises a subclass of `MailkubeError` (`AuthenticationError`, `InvalidRequestError`,
 `RateLimitError` — which carries `.retry_after` — `ServerError`, `MailkubeConnectionError`, …). Each
 API error exposes `.error_name`, `.message`, `.status_code`, and `.request_id` (quote it to support).
+A 2xx response whose body is not the shape the call expects raises the base `MailkubeError`, never
+an API error and never pydantic's `ValidationError`.
 
 The HTTP status picks the exception class; `.error_name` says precisely what went wrong. Compare it
 against the `ErrorName` constants — it stays a plain string, so an error name newer than your
@@ -257,6 +259,28 @@ except InvalidRequestError as exc:
 
 Every API error also carries `.request_id` — quote it when contacting support.
 
+## Your API key
+
+`client.credential.info()` describes the key the client authenticates with: its domain,
+organization, source-IP allowlist, plan and send-quota usage.
+
+```python
+key = client.credential.info()
+print(key.key_id, key.domain.name, key.organization.alias)
+
+if key.plan is not None:
+    for quota in key.plan.quotas:
+        print(quota.name, quota.used, quota.limit, quota.period)
+```
+
+The key is checked exactly as a send checks it, so a key that cannot send raises
+`AuthenticationError` (`invalid_api_key`): calling `info()` is how to verify a key. The call counts
+as a use of the key, and plan and quota figures can be up to 30 seconds old. `plan` is `None` when
+the organization has no subscription, and a plan without a daily limit lists `emails_per_month`
+only. `remaining` counts recipients, not messages. `AsyncMailkube` has the same method, awaited.
+
+The client keeps the key it was constructed with. To use another key, construct another client.
+
 ## Verify webhooks
 
 `webhooks.verify` is a pure, stdlib-only helper — call it in your request handler with the raw body:
@@ -361,10 +385,14 @@ Runnable scripts in [`examples/`](examples):
 - [`send_with_tags.py`](examples/send_with_tags.py) — tag a send for filtering and reporting
 - [`send_with_template.py`](examples/send_with_template.py) — send from a saved template
 - [`schedule_send.py`](examples/schedule_send.py) — schedule a send, then inspect the ack
+- [`list_scheduled_emails.py`](examples/list_scheduled_emails.py) — one page for the metadata,
+  then the lazy walk, read-only
 - [`manage_scheduled_emails.py`](examples/manage_scheduled_emails.py) — list, paginate,
   retrieve, reschedule and cancel
 - [`schedule_batch.py`](examples/schedule_batch.py) — schedule a batch, then move or cancel it
   as a unit
+- [`credential_info.py`](examples/credential_info.py) — describe the calling key, its plan and
+  quota usage
 - [`webhook_receiver_flask.py`](examples/webhook_receiver_flask.py) — verify and dispatch webhooks
   in a Flask app
 - [`sign_webhook.py`](examples/sign_webhook.py) — sign a payload to build a fixture your own tests

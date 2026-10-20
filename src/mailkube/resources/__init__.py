@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .credential import AsyncCredentialResource, CredentialResource
 from .emails import AsyncEmailsResource, EmailsResource
 from .scheduled_emails import (
     AsyncScheduledEmailBatchesResource,
@@ -11,9 +12,11 @@ from .scheduled_emails import (
 )
 
 __all__ = [
+    "AsyncCredentialResource",
     "AsyncEmailsResource",
     "AsyncScheduledEmailBatchesResource",
     "AsyncScheduledEmailsResource",
+    "CredentialResource",
     "EmailsResource",
     "ScheduledEmailBatchesResource",
     "ScheduledEmailsResource",

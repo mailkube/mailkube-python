@@ -47,6 +47,36 @@ SCHEDULED_EMAIL = {
 }
 
 
+MONTHLY_QUOTA = {
+    "name": "emails_per_month",
+    "limit": 50000,
+    "used": 9310,
+    "remaining": 40690,
+    "period": "2026-10",
+}
+
+API_KEY = {
+    "object": "api_key",
+    "key_id": "k3v9x2m8q1w7r4t6y0p5s2a8",
+    "name": "production-backend",
+    "description": None,
+    "created_at": "2026-09-02T08:14:03Z",
+    "last_auth_at": "2026-10-19T16:41:22Z",
+    "allowed_source_ips": ["203.0.113.0/24"],
+    "domain": {"name": "example.com"},
+    "organization": {"name": "Example Ltd", "alias": "example"},
+    "plan": {
+        "code": "00000000-0000-0000-0000-000000000003",
+        "name": "Momentum",
+        "status": "active",
+        "quotas": [
+            {"name": "emails_per_day", "limit": 5000, "used": 120, "remaining": 4880, "period": "2026-10-19"},
+            MONTHLY_QUOTA,
+        ],
+    },
+}
+
+
 def json_handler(status: int, payload: object, headers: dict[str, str] | None = None) -> Handler:
     """A handler answering every request with the same status + JSON body."""
 

@@ -193,6 +193,12 @@ def test_a_non_object_success_body_is_reported_clearly(payload):
         make_client(json_handler(200, payload)).scheduled_emails.get(EMAIL_ID)
 
 
+def test_a_success_object_missing_the_id_is_an_sdk_error():
+    payload = {k: v for k, v in SCHEDULED_EMAIL.items() if k != "id"}
+    with pytest.raises(MailkubeError, match="id"):
+        make_client(json_handler(200, payload)).scheduled_emails.get(EMAIL_ID)
+
+
 def test_a_transport_failure_becomes_a_connection_error():
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("boom")
