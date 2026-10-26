@@ -8,6 +8,13 @@ on:
   # README's CI badge reports. `main` stays fully covered by release.yml's ci-gate job.
   pull_request:
   workflow_call: # so release.yml can gate on the full CI
+  # Weekly, for `dependency-audit` alone: an advisory published against a version already in
+  # uv.lock arrives with no commit to hang a run on. Every other job is guarded with
+  # `if: github.event_name != 'schedule'`, so the Monday run is the audit and nothing else.
+  # GitHub runs scheduled workflows from the DEFAULT branch only, so this takes effect once the
+  # change reaches `main`, and it audits main's lock.
+  schedule:
+    - cron: "0 6 * * 1" # Monday 06:00 UTC
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -15,6 +22,7 @@ concurrency:
 
 jobs:
   test:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -55,6 +63,7 @@ jobs:
     # already pushed, so a packaging or metadata failure there yields a tagged version with nothing
     # on PyPI — unrecoverable without burning a version. Building on the PR path (and, through
     # ci-gate, on `main`) is what makes that failure impossible to reach.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       # fetch-depth: 0 for the same reason as the `test` job: hatch-vcs derives the version from
@@ -90,6 +99,7 @@ jobs:
     # The declared dependency lower bounds are otherwise fiction: every `test` leg installs the
     # exact uv.lock pins, so `httpx>=0.27` / `pydantic>=2.7` are never exercised and a floor that
     # no longer works breaks only for the consumer who resolves to it.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -115,6 +125,7 @@ jobs:
     # that would need live credentials — so this is the floor: every example must at least
     # compile. ruff and mypy (in `test`) cover style, complexity and typing; this catches what
     # neither can, a file that is not valid Python at all.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -129,6 +140,7 @@ jobs:
 
   dry:
     # Language-agnostic duplication (DRY) gate — identical across every mailkube repo.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -147,8 +159,25 @@ jobs:
 
   docs:
     # Governance gate: every .rules/*.md must be indexed in AGENTS.md.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - name: Rule-index sync check
         run: ./scripts/check-rule-index.sh
+
+  dependency-audit:
+    # A published package hands its dependency set to every consumer, so a vulnerable pin in
+    # uv.lock travels further than it would in an application. This runs on the pull-request path,
+    # where a lock change is proposed, and weekly, for an advisory published against a pin that
+    # was already there. `--skip-editable` drops this package itself, which `uv sync` installs
+    # editable and which has no advisories of its own.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Known-vulnerability audit (pip-audit)
+        run: uv run --with pip-audit pip-audit --skip-editable
