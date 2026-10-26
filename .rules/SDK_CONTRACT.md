@@ -303,9 +303,9 @@ because nothing in CI runs them: they need live credentials.
 **That makes them the easiest place for an API change to rot unnoticed, so every language also
 checks them against the library.** Go builds each one explicitly (the `//go:build ignore` tag keeps
 them out of `go build ./...`), java compiles them against the built jar, python type-checks them
-with mypy and php with phpstan. Node and Ruby only parse them (`node --check`, `ruby -c`), so a
-renamed export or method in one of their examples is caught by nothing. A language whose examples
-are not type-checked keeps them deliberately small.
+with mypy, php with phpstan, and node with `tsc --checkJs` against the built package. Ruby only
+parses them (`ruby -c`), so a renamed method in one of its examples is caught by nothing. A language
+whose examples are not type-checked keeps them deliberately small.
 
 ## Checklist for a new webhook event
 
